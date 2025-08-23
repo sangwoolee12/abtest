@@ -528,6 +528,40 @@ const PredictionScreen = () => {
     }
   };
 
+  const handleDownloadImage = async (option) => {
+    try {
+      const imageData = generatedImages[option];
+      if (!imageData || !imageData.image_url) {
+        alert('다운로드할 이미지가 없습니다.');
+        return;
+      }
+
+      // Fetch the image as blob
+      const response = await fetch(imageData.image_url);
+      const blob = await response.blob();
+      
+      // Create download link
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      
+      // Set filename based on option
+      const filename = `marketing_${option}_${Date.now()}.png`;
+      link.download = filename;
+      
+      // Trigger download
+      document.body.appendChild(link);
+      link.click();
+      
+      // Cleanup
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+    } catch (e) {
+      alert('다운로드 중 오류가 발생했습니다.');
+    }
+  };
+
   useEffect(() => {
     try {
       const productRaw = localStorage.getItem('product');
@@ -669,8 +703,11 @@ const PredictionScreen = () => {
               </GeneratedImage>
             )}
             
-            <ActionButton onClick={() => handleGenerateImage('A')} disabled={imageLoading.A}>
-              {imageLoading.A ? '생성 중...' : '이미지 생성하기'}
+            <ActionButton 
+              onClick={generatedImages.A ? () => handleDownloadImage('A') : () => handleGenerateImage('A')} 
+              disabled={imageLoading.A}
+            >
+              {imageLoading.A ? '생성 중...' : generatedImages.A ? '다운로드' : '이미지 생성하기'}
               <ArrowIcon>
                 <ArrowHorizontal />
                 <ArrowVertical />
@@ -710,8 +747,11 @@ const PredictionScreen = () => {
               </GeneratedImage>
             )}
             
-            <ActionButton onClick={() => handleGenerateImage('B')} disabled={imageLoading.B}>
-              {imageLoading.B ? '생성 중...' : '이미지 생성하기'}
+            <ActionButton 
+              onClick={generatedImages.B ? () => handleDownloadImage('B') : () => handleGenerateImage('B')} 
+              disabled={imageLoading.B}
+            >
+              {imageLoading.B ? '생성 중...' : generatedImages.B ? '다운로드' : '이미지 생성하기'}
               <ArrowIcon>
                 <ArrowHorizontal />
                 <ArrowVertical />
@@ -748,8 +788,11 @@ const PredictionScreen = () => {
               </GeneratedImage>
             )}
             
-            <ActionButton onClick={() => handleGenerateImage('C')} disabled={imageLoading.C}>
-              {imageLoading.C ? '생성 중...' : '이미지 생성하기'}
+            <ActionButton 
+              onClick={generatedImages.C ? () => handleDownloadImage('C') : () => handleGenerateImage('C')} 
+              disabled={imageLoading.C}
+            >
+              {imageLoading.C ? '생성 중...' : generatedImages.C ? '다운로드' : '이미지 생성하기'}
               <ArrowIcon>
                 <ArrowHorizontal />
                 <ArrowVertical />
