@@ -60,6 +60,24 @@ def root():
 def health():
     return {"ok": True, "service": "ab-test-backend"}
 
+@app.get("/api/test-openai")
+def test_openai():
+    try:
+        api_key = (os.getenv("OPENAI_API_KEY") or "").strip()
+        if not api_key:
+            return {"ok": False, "error": "Missing OPENAI_API_KEY"}
+        
+        client = OpenAI(api_key=api_key)
+        # Simple test call
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": "Say hello"}],
+            max_tokens=10
+        )
+        return {"ok": True, "openai_working": True, "response": response.choices[0].message.content}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
 
 def _build_prompt(payload: PredictRequest) -> str:
     audience = ", ".join(filter(None, [
@@ -201,11 +219,23 @@ def _call_llm(prompt: str) -> PredictResponse:
 
 @app.post("/api/predict", response_model=PredictResponse)
 def predict(req: PredictRequest):
-    if not req.marketing_a and not req.marketing_b:
-        raise HTTPException(status_code=400, detail="At least one of marketing_a or marketing_b must be provided")
-    prompt = _build_prompt(req)
-    result = _call_llm(prompt)
-    return result
+    try:
+        if not req.marketing_a and not req.marketing_b:
+            raise HTTPException(status_code=400, detail="At least one of marketing_a or marketing_b must be provided")
+        
+        # Validate API key first
+        api_key = (os.getenv("OPENAI_API_KEY") or "").strip()
+        if not api_key:
+            raise HTTPException(status_code=500, detail="Missing OPENAI_API_KEY in environment")
+        
+        prompt = _build_prompt(req)
+        result = _call_llm(prompt)
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Prediction error: {e}")
+        raise HTTPException(status_code=500, detail=f"Prediction failed: {str(e)}")
 
 @app.post("/api/generate-image", response_model=ImageGenerationResponse)
 def generate_image(req: ImageGenerationRequest):

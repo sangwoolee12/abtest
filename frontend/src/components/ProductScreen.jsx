@@ -473,7 +473,9 @@ const ProductScreen = () => {
         try {
           const errJson = await resp.json();
           detail = errJson?.detail || JSON.stringify(errJson);
-        } catch (_) {}
+        } catch (_) {
+          detail = `HTTP ${resp.status}`;
+        }
         throw new Error(`Request failed: ${resp.status} ${detail}`);
       }
       const data = await resp.json();
