@@ -92,10 +92,14 @@ if _ENV_PATH.exists():
 
 app = FastAPI(title="ab-test-backend")
 
-# CORS for local frontend dev
+# CORS for frontend (local and production)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "http://localhost:3000",
+        "https://your-netlify-app.netlify.app",  # Netlify URL로 변경
+        "https://*.netlify.app"  # 모든 Netlify 서브도메인 허용
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

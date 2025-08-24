@@ -463,7 +463,9 @@ const ProductScreen = () => {
       };
       localStorage.setItem('product', JSON.stringify(payload));
 
-      const resp = await fetch(`/api/predict`, {
+      const baseUrl = process.env.REACT_APP_API_BASE_URL || '';
+      const apiUrl = baseUrl ? `${baseUrl}/api/predict` : '/api/predict';
+      const resp = await fetch(apiUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
