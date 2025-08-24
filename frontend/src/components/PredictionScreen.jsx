@@ -503,7 +503,9 @@ const PredictionScreen = () => {
         target_audience: [...(target.age_groups || []), ...(target.genders || [])].join(', ')
       };
       
-      const resp = await fetch('/api/generate-image', {
+      const baseUrl = process.env.REACT_APP_API_BASE_URL || '';
+      const apiUrl = baseUrl ? `${baseUrl}/api/generate-image` : '/api/generate-image';
+      const resp = await fetch(apiUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
