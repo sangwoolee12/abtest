@@ -172,15 +172,15 @@ const TabContainer = styled.div`
 
 const Tab = styled.div`
   padding: 10px 16px;
-  background: ${props => props.isActive ? '#FAFAFA' : 'transparent'};
-  border: ${props => props.isActive ? '1px solid #ECEDF0' : 'none'};
+  background: ${props => (props.isActive ? '#FAFAFA' : 'transparent')};
+  border: ${props => (props.isActive ? '1px solid #ECEDF0' : 'none')};
   border-radius: 8px;
   cursor: pointer;
   font-family: 'Roboto', sans-serif;
-  font-weight: ${props => props.isActive ? '500' : '400'};
+  font-weight: ${props => (props.isActive ? '500' : '400')};
   font-size: 16px;
   line-height: 1.5;
-  color: ${props => props.isActive ? '#222222' : '#6A6A6A'};
+  color: ${props => (props.isActive ? '#222222' : '#6A6A6A')};
   transition: all 0.3s ease;
 
   &:hover {
@@ -276,7 +276,7 @@ const Badge = styled.div`
   display: flex;
   align-items: center;
   gap: 10px;
-  
+
   ${props => {
     switch (props.variant) {
       case 'ctr':
@@ -297,7 +297,7 @@ const BadgeIcon = styled.div`
   width: 15px;
   height: 15px;
   border-radius: 50%;
-  
+
   ${props => {
     switch (props.variant) {
       case 'ctr':
@@ -472,6 +472,30 @@ const PredictionScreen = () => {
   const [generatedImages, setGeneratedImages] = useState({});
   const [imageLoading, setImageLoading] = useState({});
 
+  // --- 이미지 생성 = 최종 선택 잠금 로직 ---
+  const [choiceLocked, setChoiceLocked] = useState(false);
+  const [chosenOption, setChosenOption] = useState(''); // 'A' | 'B' | 'C'
+  const [chosenText, setChosenText] = useState('');
+
+  const logId = result?.log_id || '';
+  const lockKey = logId ? `choice_lock_${logId}` : '';
+
+  useEffect(() => {
+    if (!logId) return; // 예측 응답 아직 없음
+    try {
+      const saved = localStorage.getItem(lockKey);
+      if (saved) {
+        const { locked, option, text } = JSON.parse(saved);
+        setChoiceLocked(!!locked);
+        if (option) setChosenOption(option);
+        if (text) setChosenText(text);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [logId]);
+
   const handleLogoClick = () => {
     navigate('/');
   };
@@ -487,28 +511,49 @@ const PredictionScreen = () => {
   };
 
   const handleGenerateImage = async (option) => {
+    // 이미 다른 옵션으로 확정되었으면 막기
+    if (choiceLocked && chosenOption !== option) return;
+
+    // 0) 클릭 즉시 문구/타겟 로드 & 잠금 선적용 (다른 시안/더블클릭 방지)
+    const product = JSON.parse(localStorage.getItem('product') || '{}');
+    const target = JSON.parse(localStorage.getItem('target') || '{}');
+    const marketingText =
+      option === 'A' ? (product.marketing_a || '') :
+      option === 'B' ? (product.marketing_b || '') :
+      (result.ai_suggestion || '');
+
+    // 클릭 즉시 잠금 + 로딩 on
+    setChoiceLocked(true);
+    setChosenOption(option);
+    setChosenText(marketingText);
+    if (lockKey) {
+      localStorage.setItem(lockKey, JSON.stringify({ locked: true, option, text: marketingText }));
+    }
+    setImageLoading(prev => ({ ...prev, [option]: true }));
+
     try {
-      setImageLoading(prev => ({ ...prev, [option]: true }));
-      
-      const product = JSON.parse(localStorage.getItem('product') || '{}');
-      const target = JSON.parse(localStorage.getItem('target') || '{}');
-      
-      const marketingText = option === 'A' ? product.marketing_a : 
-                           option === 'B' ? product.marketing_b : 
-                           result.ai_suggestion;
-      
+      // 1) 사용자 최종 선택 즉시 기록
+      if (logId && marketingText) {
+        await fetch('/api/log-user-choice', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ log_id: logId, user_final_text: marketingText }),
+        });
+      }
+
+      // 2) 이미지 생성
       const payload = {
         marketing_text: marketingText,
-        product_category: product.category,
+        product_category: product.category || null,
         target_audience: [...(target.age_groups || []), ...(target.genders || [])].join(', ')
       };
-      
+
       const resp = await fetch('/api/generate-image', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
-      
+
       if (!resp.ok) {
         let detail = '';
         try {
@@ -517,11 +562,15 @@ const PredictionScreen = () => {
         } catch (_) {}
         throw new Error(`Image generation failed: ${resp.status} ${detail}`);
       }
-      
+
       const data = await resp.json();
       setGeneratedImages(prev => ({ ...prev, [option]: data }));
-      
     } catch (e) {
+      // 실패 시 잠금 해제하여 재시도 가능하게
+      setChoiceLocked(false);
+      setChosenOption('');
+      setChosenText('');
+      if (lockKey) localStorage.removeItem(lockKey);
       alert((e && e.message) ? e.message : '이미지 생성 중 오류가 발생했습니다.');
     } finally {
       setImageLoading(prev => ({ ...prev, [option]: false }));
@@ -536,27 +585,19 @@ const PredictionScreen = () => {
         return;
       }
 
-      // Fetch the image as blob
       const response = await fetch(imageData.image_url);
       const blob = await response.blob();
-      
-      // Create download link
+
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      
-      // Set filename based on option
       const filename = `marketing_${option}_${Date.now()}.png`;
       link.download = filename;
-      
-      // Trigger download
+
       document.body.appendChild(link);
       link.click();
-      
-      // Cleanup
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
-      
     } catch (e) {
       alert('다운로드 중 오류가 발생했습니다.');
     }
@@ -564,20 +605,19 @@ const PredictionScreen = () => {
 
   useEffect(() => {
     try {
-      const productRaw = localStorage.getItem('product');
       const targetRaw = localStorage.getItem('target');
       const predRaw = localStorage.getItem('prediction');
-      const product = productRaw ? JSON.parse(productRaw) : {};
       const target = targetRaw ? JSON.parse(targetRaw) : {};
       const pred = predRaw ? JSON.parse(predRaw) : null;
+
       setSummaryTarget({
         age_groups: target.age_groups || [],
         genders: target.genders || [],
         interests: target.interests || '',
       });
+
       if (pred) {
         setResult(pred);
-        // Determine which option has higher CTR
         if (pred.ctr_a && pred.ctr_b) {
           setHighestCtrOption(pred.ctr_a > pred.ctr_b ? 'A' : 'B');
         }
@@ -592,7 +632,7 @@ const PredictionScreen = () => {
   return (
     <PredictionScreenContainer>
       <BackgroundNoise />
-      
+
       <Header>
         <Logo onClick={handleLogoClick}>
           <LogoIcon>
@@ -602,7 +642,7 @@ const PredictionScreen = () => {
           </LogoIcon>
           <LogoText>로고</LogoText>
         </Logo>
-        
+
         <Navigation>
           <NavItems>
             <NavItem>
@@ -632,26 +672,26 @@ const PredictionScreen = () => {
         </PageHeader>
 
         <TabContainer>
-          <Tab 
-            isActive={activeTab === 'Target'} 
+          <Tab
+            isActive={activeTab === 'Target'}
             onClick={() => handleTabClick('Target')}
           >
             Target
           </Tab>
-          <Tab 
-            isActive={activeTab === 'Product'} 
+          <Tab
+            isActive={activeTab === 'Product'}
             onClick={() => handleTabClick('Product')}
           >
             Product
           </Tab>
-          <Tab 
-            isActive={activeTab === 'Prediction'} 
+          <Tab
+            isActive={activeTab === 'Prediction'}
             onClick={() => handleTabClick('Prediction')}
           >
             Prediction
           </Tab>
-          <Tab 
-            isActive={activeTab === 'Generate Images'} 
+          <Tab
+            isActive={activeTab === 'Generate Images'}
             onClick={() => handleTabClick('Generate Images')}
           >
             Generate Images
@@ -661,7 +701,9 @@ const PredictionScreen = () => {
         <SummaryPanel>
           <SummarySection>
             <SummaryLabel>타겟</SummaryLabel>
-            <SummaryValue>{[...summaryTarget.age_groups, ...summaryTarget.genders].join(', ') || '-'}</SummaryValue>
+            <SummaryValue>
+              {[...summaryTarget.age_groups, ...summaryTarget.genders].join(', ') || '-'}
+            </SummaryValue>
           </SummarySection>
           <VerticalDivider />
           <SummarySection>
@@ -671,6 +713,7 @@ const PredictionScreen = () => {
         </SummaryPanel>
 
         <ResultsContainer>
+          {/* A안 */}
           <ResultCard>
             <CardHeader>
               {highestCtrOption === 'A' && (
@@ -682,32 +725,45 @@ const PredictionScreen = () => {
               {highestCtrOption !== 'A' && <div></div>}
               <CardTitle>A안</CardTitle>
             </CardHeader>
-            
+
             <ChartContainer>
               <div style={{ position: 'relative' }}>
-                <ChartBar 
-                  height={result.ctr_a ? (result.ctr_a * 100) : 0} 
+                <ChartBar
+                  height={result.ctr_a ? result.ctr_a * 100 : 0}
                   color="#EA5F38"
                 >
-                  <ChartValue>{result.ctr_a ? `${(result.ctr_a * 100).toFixed(1)}%` : '-'}</ChartValue>
+                  <ChartValue>
+                    {result.ctr_a ? `${(result.ctr_a * 100).toFixed(1)}%` : '-'}
+                  </ChartValue>
                 </ChartBar>
                 <ChartLabel>A안</ChartLabel>
               </div>
             </ChartContainer>
-            
+
             <ContentPlaceholder>{error ? error : (result.analysis_a || '')}</ContentPlaceholder>
-            
+
             {generatedImages.A && (
               <GeneratedImage>
-                <GeneratedImageImg src={generatedImages.A.image_url} alt="Generated A안 image" />
+                <GeneratedImageImg
+                  src={generatedImages.A.image_url}
+                  alt="Generated A안 image"
+                />
               </GeneratedImage>
             )}
-            
-            <ActionButton 
-              onClick={generatedImages.A ? () => handleDownloadImage('A') : () => handleGenerateImage('A')} 
-              disabled={imageLoading.A}
+
+            <ActionButton
+              onClick={
+                generatedImages.A
+                  ? () => handleDownloadImage('A')
+                  : () => handleGenerateImage('A')
+              }
+              disabled={imageLoading.A || choiceLocked && chosenOption !== 'A'}
             >
-              {imageLoading.A ? '생성 중...' : generatedImages.A ? '다운로드' : '이미지 생성하기'}
+              {imageLoading.A
+                ? '생성 중...'
+                : generatedImages.A
+                ? '다운로드'
+                : '이미지 생성하기'}
               <ArrowIcon>
                 <ArrowHorizontal />
                 <ArrowVertical />
@@ -715,6 +771,7 @@ const PredictionScreen = () => {
             </ActionButton>
           </ResultCard>
 
+          {/* B안 */}
           <ResultCard>
             <CardHeader>
               {highestCtrOption === 'B' && (
@@ -726,32 +783,45 @@ const PredictionScreen = () => {
               {highestCtrOption !== 'B' && <div></div>}
               <CardTitle>B안</CardTitle>
             </CardHeader>
-            
+
             <ChartContainer>
               <div style={{ position: 'relative' }}>
-                <ChartBar 
-                  height={result.ctr_b ? (result.ctr_b * 100) : 0} 
+                <ChartBar
+                  height={result.ctr_b ? result.ctr_b * 100 : 0}
                   color="#EA5F38"
                 >
-                  <ChartValue>{result.ctr_b ? `${(result.ctr_b * 100).toFixed(1)}%` : '-'}</ChartValue>
+                  <ChartValue>
+                    {result.ctr_b ? `${(result.ctr_b * 100).toFixed(1)}%` : '-'}
+                  </ChartValue>
                 </ChartBar>
                 <ChartLabel>B안</ChartLabel>
               </div>
             </ChartContainer>
-            
+
             <ContentPlaceholder>{error ? error : (result.analysis_b || '')}</ContentPlaceholder>
-            
+
             {generatedImages.B && (
               <GeneratedImage>
-                <GeneratedImageImg src={generatedImages.B.image_url} alt="Generated B안 image" />
+                <GeneratedImageImg
+                  src={generatedImages.B.image_url}
+                  alt="Generated B안 image"
+                />
               </GeneratedImage>
             )}
-            
-            <ActionButton 
-              onClick={generatedImages.B ? () => handleDownloadImage('B') : () => handleGenerateImage('B')} 
-              disabled={imageLoading.B}
+
+            <ActionButton
+              onClick={
+                generatedImages.B
+                  ? () => handleDownloadImage('B')
+                  : () => handleGenerateImage('B')
+              }
+              disabled={imageLoading.B || choiceLocked && chosenOption !== 'B'}
             >
-              {imageLoading.B ? '생성 중...' : generatedImages.B ? '다운로드' : '이미지 생성하기'}
+              {imageLoading.B
+                ? '생성 중...'
+                : generatedImages.B
+                ? '다운로드'
+                : '이미지 생성하기'}
               <ArrowIcon>
                 <ArrowHorizontal />
                 <ArrowVertical />
@@ -759,6 +829,7 @@ const PredictionScreen = () => {
             </ActionButton>
           </ResultCard>
 
+          {/* C안 (AI 추천) */}
           <ResultCard>
             <CardHeader>
               <Badge variant="ai">
@@ -767,11 +838,15 @@ const PredictionScreen = () => {
               </Badge>
               <CardTitle>C안</CardTitle>
             </CardHeader>
-            
+
             <ChartContainer>
               <div style={{ position: 'relative' }}>
-                <ChartBar 
-                  height={result.ctr_a && result.ctr_b ? Math.max(result.ctr_a, result.ctr_b) * 100 : 0} 
+                <ChartBar
+                  height={
+                    result.ctr_a && result.ctr_b
+                      ? Math.max(result.ctr_a, result.ctr_b) * 100
+                      : 0
+                  }
                   color="#F072F6"
                 >
                   <ChartValue>AI 추천</ChartValue>
@@ -779,20 +854,31 @@ const PredictionScreen = () => {
                 <ChartLabel>C안</ChartLabel>
               </div>
             </ChartContainer>
-            
+
             <ContentPlaceholder>{error ? error : (result.ai_suggestion || '')}</ContentPlaceholder>
-            
+
             {generatedImages.C && (
               <GeneratedImage>
-                <GeneratedImageImg src={generatedImages.C.image_url} alt="Generated C안 image" />
+                <GeneratedImageImg
+                  src={generatedImages.C.image_url}
+                  alt="Generated C안 image"
+                />
               </GeneratedImage>
             )}
-            
-            <ActionButton 
-              onClick={generatedImages.C ? () => handleDownloadImage('C') : () => handleGenerateImage('C')} 
-              disabled={imageLoading.C}
+
+            <ActionButton
+              onClick={
+                generatedImages.C
+                  ? () => handleDownloadImage('C')
+                  : () => handleGenerateImage('C')
+              }
+              disabled={imageLoading.C || choiceLocked && chosenOption !== 'C'}
             >
-              {imageLoading.C ? '생성 중...' : generatedImages.C ? '다운로드' : '이미지 생성하기'}
+              {imageLoading.C
+                ? '생성 중...'
+                : generatedImages.C
+                ? '다운로드'
+                : '이미지 생성하기'}
               <ArrowIcon>
                 <ArrowHorizontal />
                 <ArrowVertical />
@@ -805,13 +891,25 @@ const PredictionScreen = () => {
       <Footer>
         <CompanyLogos>
           <CompanyLogo>
-            <img src={companyLogo1} alt="Company 1" style={{ width: '100%', height: 'auto' }} />
+            <img
+              src={companyLogo1}
+              alt="Company 1"
+              style={{ width: '100%', height: 'auto' }}
+            />
           </CompanyLogo>
           <CompanyLogo>
-            <img src={companyLogo2} alt="Company 2" style={{ width: '100%', height: 'auto' }} />
+            <img
+              src={companyLogo2}
+              alt="Company 2"
+              style={{ width: '100%', height: 'auto' }}
+            />
           </CompanyLogo>
           <CompanyLogo>
-            <img src={companyLogo3} alt="Company 3" style={{ width: '100%', height: 'auto' }} />
+            <img
+              src={companyLogo3}
+              alt="Company 3"
+              style={{ width: '100%', height: 'auto' }}
+            />
           </CompanyLogo>
         </CompanyLogos>
       </Footer>
