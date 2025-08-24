@@ -8,6 +8,14 @@ from pathlib import Path
 from dotenv import load_dotenv  # type: ignore
 from openai import OpenAI
 import uuid, time
+# === RAG/팔로우 로직에 필요한 임포트/상수 ===
+from dataclasses import dataclass
+import numpy as np
+
+EMBED_MODEL = "text-embedding-3-small"     # 임베딩용
+LLM_MODEL   = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+LLM_TEMP    = float(os.getenv("OPENAI_TEMPERATURE", "0.2"))
+
 
 # -----------------------------
 # 저장 경로/유틸
@@ -83,6 +91,323 @@ class ABTestStoredResult(BaseModel):
     # 사용자 최종 선택(예측 시점엔 None)
     user_final_text: Optional[str] = None
 
+# === 페르소나 시드 ===
+@dataclass
+class Persona:
+    id: str
+    name: str
+    weight: float
+    categories: list[str]
+    ages: list[str]       # "10s","20s","30s","40s","50s+"
+    genders: list[str]    # "male","female","other"
+    interests: list[str]
+    notes: str = ""
+
+PERSONAS: list[Persona] = [
+    Persona("p1","운동 매니아",1.2,["sportswear","fitness","health"],["20s","30s"],["male"],["헬스","러닝","다이어트"]),
+    Persona("p2","가성비 중시 직장인",1.0,["electronics","home","beauty","fashion"],["20s","30s"],["male","female"],["할인","혜택","퀵배송"]),
+    Persona("p3","감성 소비자",0.9,["beauty","fashion","lifestyle"],["20s"],["female"],["인스타","감성","브랜딩"]),
+    Persona("p4","실용 주부",1.1,["home","food","kids"],["30s","40s"],["female"],["가성비","편의성","안전"]),
+    Persona("p5","얼리어답터",1.0,["electronics","gadgets"],["20s","30s"],["male"],["신제품","스펙","리뷰"]),
+    Persona("p6","등산 마니아",1.0,["outdoor","sportswear"],["40s","50s+"],["male","female"],["등산","트레킹","방수"]),
+]
+
+# === 임베딩 & 유사도 ===
+def _embed_text(text: str) -> np.ndarray:
+    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+    r = client.embeddings.create(model=EMBED_MODEL, input=text[:8000])
+    return np.array(r.data[0].embedding, dtype=np.float32)
+
+def _cosine(a: np.ndarray, b: np.ndarray) -> float:
+    da, db = np.linalg.norm(a), np.linalg.norm(b)
+    if da == 0 or db == 0: return 0.0
+    return float(np.dot(a, b) / (da * db))
+
+def _feature_sentence(category:str, ages:list[str], genders:list[str], interests:str, A:str, B:str)->str:
+    return (f"category={category}; ages={','.join(ages or [])}; genders={','.join(genders or [])}; "
+            f"interests={interests}; A={A}; B={B}")
+
+# === 페르소나 샘플링 ===
+def _overlap_ratio(a:set[str], b:set[str])->float:
+    if not a or not b: return 0.0
+    return len(a & b) / max(1, len(a))
+
+def _persona_match_score(pr: "PredictRequest", ps: Persona) -> float:
+    cat = 1.0 if (pr.category or "").strip().lower() in [c.lower() for c in ps.categories] else 0.0
+    age = _overlap_ratio(set(map(str.lower, pr.age_groups or [])), set(map(str.lower, ps.ages)))
+    gen = _overlap_ratio(set(map(str.lower, pr.genders or [])), set(map(str.lower, ps.genders)))
+    ints = 0.0
+    if pr.interests:
+        rq = set(map(str.lower, [x.strip() for x in pr.interests.split(",") if x.strip()]))
+        ints = _overlap_ratio(rq, set(map(str.lower, ps.interests)))
+    return 0.4*cat + 0.25*age + 0.25*gen + 0.10*ints
+
+def sample_personas(pr: "PredictRequest", topN: int = 5) -> list[Persona]:
+    scored = [(p, _persona_match_score(pr, p)) for p in PERSONAS]
+    scored.sort(key=lambda x: x[1], reverse=True)
+    return [p for p,_ in scored[:topN]]
+
+# === 페르소나 LLM 스코어링(1~5) 배치 ===
+def _build_persona_scoring_prompt(pr: "PredictRequest", personas: list[Persona]) -> str:
+    persona_blocks = []
+    for p in personas:
+        persona_blocks.append(
+            f"- id:{p.id}, name:{p.name}, weight:{p.weight}, "
+            f"age:{'/'.join(p.ages)}, gender:{'/'.join(p.genders)}, "
+            f"interests:{'/'.join(p.interests)}, categories:{'/'.join(p.categories)}"
+        )
+    return f"""
+당신은 페르소나 마케팅 분석가입니다.
+각 페르소나 입장에서 아래 두 카피(A/B)에 대한 "클릭 의향 점수"(1~5, 정수)와 근거 키워드를 JSON으로만 반환하세요.
+
+[입력 타겟]
+- category: {pr.category}
+- ages: {", ".join(pr.age_groups or [])}
+- genders: {", ".join(pr.genders or [])}
+- interests: {pr.interests}
+
+[카피]
+- A: {pr.marketing_a}
+- B: {pr.marketing_b}
+
+[페르소나]
+{chr(10).join(persona_blocks)}
+
+[반환 형식: STRICT JSON]
+{{
+  "results": [
+    {{ "persona_id": "p1", "score_a": 1, "score_b": 5, "reasons": ["가성비","긴급성","신뢰"] }}
+  ],
+  "winner_reason_keywords": ["핵심1","핵심2","핵심3"]
+}}
+""".strip()
+
+def llm_persona_scores(pr: "PredictRequest", personas: list[Persona]):
+    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+    prompt = _build_persona_scoring_prompt(pr, personas)
+    resp = client.chat.completions.create(
+        model=LLM_MODEL,
+        temperature=LLM_TEMP,
+        messages=[
+            {"role":"system","content":"You are a helpful marketing analyst. Return STRICT JSON only."},
+            {"role":"user","content": prompt}
+        ],
+    )
+    content = (resp.choices[0].message.content or "").strip()
+    try:
+        data = json.loads(content)
+    except:
+        l = content.find("{"); r = content.rfind("}")
+        if l>=0 and r>l:
+            data = json.loads(content[l:r+1])
+        else:
+            raise HTTPException(status_code=502, detail="LLM JSON parse failed")
+
+    rows = data.get("results", [])
+    kw  = data.get("winner_reason_keywords", [])
+    # id → weight
+    wmap = {p.id: p.weight for p in personas}
+    clean = []
+    for r in rows:
+        pid = r.get("persona_id","")
+        if pid not in wmap: 
+            continue
+        sa  = max(1, min(5, int(r.get("score_a", 3))))
+        sb  = max(1, min(5, int(r.get("score_b", 3))))
+        rs  = (r.get("reasons") or [])[:3]
+        clean.append({"persona_id": pid, "w": wmap[pid], "sa": sa, "sb": sb, "reasons": rs})
+    return clean, kw
+
+def weighted_ctr_from_scores(rows: list[dict]):
+    if not rows:
+        return 0.5, 0.5, [], []
+    wsum = sum(r["w"] for r in rows) or 1.0
+    a = sum(r["w"]*r["sa"] for r in rows) / wsum
+    b = sum(r["w"]*r["sb"] for r in rows) / wsum
+    ctr_a = a/5.0
+    ctr_b = b/5.0
+    ra, rb = [], []
+    for r in rows:
+        if r["sa"] > r["sb"]: ra += r["reasons"]
+        elif r["sb"] > r["sa"]: rb += r["reasons"]
+    from collections import Counter
+    top = lambda xs: [w for w,_ in Counter(xs).most_common(5)]
+    return ctr_a, ctr_b, top(ra), top(rb)
+
+# === 제3문구 생성(규칙 준수) ===
+FORBIDDEN = ["무료증정","100% 환불","전액보장"]
+CTA_LIST  = ["지금 바로 확인하세요","지금 시작해보세요","오늘만 혜택을 받아보세요"]
+
+def _build_third_copy_prompt(pr: "PredictRequest", winner_keywords: list[str], winner: str) -> str:
+    return f"""
+아래 조건을 만족하는 한국어 마케팅 헤드라인을 1개 생성하세요. STRICT JSON으로만 반환합니다.
+[목표]
+- 승자 카피({winner})의 강점을 반영해 더 높은 CTR이 예상되는 문구 1개
+[승자 요인 키워드]
+{", ".join(winner_keywords)}
+[제약]
+- 최대 28자
+- CTA 반드시 1개 포함(예: {", ".join(CTA_LIST)})
+- 금칙어 포함 금지: {", ".join(FORBIDDEN)}
+- 과장/허위 불가, 명확하고 간결하게
+[반환]
+{{ "text": "최종 문구" }}
+""".strip()
+
+def _violates_rules(text: str) -> bool:
+    t = (text or "").strip()
+    if any(bad in t for bad in FORBIDDEN): return True
+    if len(t) > 28: return True
+    if not any(cta in t for cta in CTA_LIST): return True
+    return False
+
+def generate_third_copy(pr: "PredictRequest", winner_keywords: list[str], winner: str) -> str:
+    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+    resp = client.chat.completions.create(
+        model=LLM_MODEL,
+        temperature=LLM_TEMP,
+        messages=[
+            {"role":"system","content":"Return STRICT JSON only."},
+            {"role":"user","content": _build_third_copy_prompt(pr, winner_keywords, winner)}
+        ],
+    )
+    content = (resp.choices[0].message.content or "").strip()
+    try:
+        data = json.loads(content)
+    except:
+        l = content.find("{"); r = content.rfind("}")
+        data = json.loads(content[l:r+1]) if l>=0 and r>l else {"text": ""}
+    text = (data.get("text") or "").strip()
+    if _violates_rules(text):
+        if not any(cta in text for cta in CTA_LIST):
+            text = (text[:max(0, 28-len(CTA_LIST[0])-1)] + " " + CTA_LIST[0]).strip()
+        text = text[:28]
+        for bad in FORBIDDEN:
+            text = text.replace(bad, "")
+        text = text.strip()
+    return text
+
+# === CTR 캘리브레이션 (현실 범위로 매핑) ===
+CALIBRATION = {
+    # 카테고리별(예시) 현실 범위: 최소~최대 CTR (비율)
+    "default":   {"min": 0.003, "max": 0.050, "prior_mu": 0.012},  # 0.3% ~ 5.0%, 평균 1.2%
+    "sportswear":{"min": 0.004, "max": 0.050, "prior_mu": 0.015},
+    "fashion":   {"min": 0.004, "max": 0.060, "prior_mu": 0.018},
+    "beauty":    {"min": 0.004, "max": 0.055, "prior_mu": 0.017},
+    "electronics":{"min": 0.003, "max": 0.040, "prior_mu": 0.010},
+    "outdoor":   {"min": 0.003, "max": 0.045, "prior_mu": 0.012},
+    "home":      {"min": 0.003, "max": 0.040, "prior_mu": 0.011},
+    "food":      {"min": 0.005, "max": 0.060, "prior_mu": 0.020},
+    "lifestyle": {"min": 0.004, "max": 0.050, "prior_mu": 0.015},
+}
+
+def _calib_entry(cat: Optional[str]):
+    if not cat:
+        return CALIBRATION["default"]
+    key = (cat or "").lower().strip()
+    return CALIBRATION.get(key, CALIBRATION["default"])
+
+def calibrate_ctr(raw_score: float, category: Optional[str], shrink: float = 0.35) -> float:
+    """
+    raw_score: 0~1 상대 스코어
+    1) 카테고리별 현실 범위 [min,max]로 선형 매핑
+    2) prior 평균(prior_mu)로 shrink (가중 평균)
+    """
+    e = _calib_entry(category)
+    s = max(0.0, min(1.0, float(raw_score)))
+    mapped = e["min"] + s * (e["max"] - e["min"])
+    calibrated = (1.0 - shrink) * mapped + shrink * e["prior_mu"]
+    return float(max(e["min"], min(e["max"], calibrated)))
+
+# === 과거 '최종선택' 레코드 인덱스 ===
+_INDEX = []  # {log_id, vec, ts, category, ages:set, genders:set, A, B, final_text, final_class}
+
+def _to_class(rec) -> str:
+    ft = (rec.get("user_final_text") or "").strip()
+    if not ft: return ""
+    if ft == (rec.get("marketing_a") or ""): return "A"
+    if ft == (rec.get("marketing_b") or ""): return "B"
+    return "C"
+
+def _load_jsonl(path: Path):
+    if not path.exists(): return []
+    out=[]
+    with path.open("r", encoding="utf-8") as f:
+        for line in f:
+            line=line.strip()
+            if not line: continue
+            try: out.append(json.loads(line))
+            except: pass
+    return out
+
+def _rebuild_index():
+    global _INDEX
+    _INDEX = []
+    for r in _load_jsonl(RESULTS_PATH):
+        if "pred_ctr_a" not in r or "pred_ctr_b" not in r: 
+            continue
+        c = _to_class(r)
+        if not c: 
+            continue
+        feat = _feature_sentence(
+            r.get("category",""), r.get("age_groups",[]), r.get("genders",[]),
+            r.get("interests",""), r.get("marketing_a",""), r.get("marketing_b","")
+        )
+        try:
+            vec = _embed_text(feat)
+        except Exception:
+            continue
+        _INDEX.append({
+            "log_id": r.get("log_id"),
+            "vec": vec,
+            "ts": float(r.get("timestamp", time.time())),
+            "category": (r.get("category","") or "").lower().strip(),
+            "ages": set(map(str.lower, r.get("age_groups",[]))),
+            "genders": set(map(str.lower, r.get("genders",[]))),
+            "A": r.get("marketing_a",""),
+            "B": r.get("marketing_b",""),
+            "final_text": r.get("user_final_text",""),
+            "final_class": c,
+        })
+
+def _recency_weight(ts: float, alpha: float = 0.03) -> float:
+    days = max(0.0, (time.time() - ts) / 86400.0)
+    return 1.0 / (1.0 + alpha * days)
+
+def _knn_follow(category:str, ages:list[str], genders:list[str], interests:str, A:str, B:str, 
+                k:int=8, tau_hard:float=0.92):
+    if not _INDEX:
+        return {"mode":"none"}
+    feat = _feature_sentence(category, ages or [], genders or [], interests or "", A or "", B or "")
+    try:
+        q = _embed_text(feat)
+    except Exception:
+        return {"mode":"none"}
+
+    sims = []
+    for item in _INDEX:
+        sim = _cosine(q, item["vec"])
+        sims.append((sim, item))
+    sims.sort(key=lambda x: x[0], reverse=True)
+    top = sims[:k]
+    if not top: return {"mode":"none"}
+
+    top1_sim, top1_item = top[0]
+    if top1_sim >= tau_hard:
+        return {"mode":"hard", "follow_class": top1_item["final_class"], "sim": top1_sim}
+
+    total_w=0.0
+    votes={"A":0.0,"B":0.0,"C":0.0}
+    for sim, item in top:
+        cat_boost = 1.15 if item["category"] == (category or "").lower().strip() else 1.0
+        w = (0.7*sim + 0.3*_recency_weight(item["ts"])) * cat_boost
+        votes[item["final_class"]] += w
+        total_w += w
+    if total_w <= 0: return {"mode":"none"}
+    for k_ in votes: votes[k_] /= total_w
+    return {"mode":"soft", "probs": votes, "top_sim": top1_sim}
+
+
 # -----------------------------
 # 환경 로드 및 앱
 # -----------------------------
@@ -97,13 +422,20 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:3000",
-        "https://your-netlify-app.netlify.app",  # Netlify URL로 변경
-        "https://*.netlify.app"  # 모든 Netlify 서브도메인 허용
+        "https://your-netlify-app.netlify.app",  # 실제 배포 URL로 교체
     ],
+    allow_origin_regex=r"https://.*\.netlify\.app$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# 서버 기동 시 인덱스 구성(키 없으면 스킵)
+try:
+    _rebuild_index()
+except Exception as e:
+    print(f"[WARN] follow-index build skipped: {e}")
+
 
 # -----------------------------
 # 스키마
@@ -165,7 +497,7 @@ def test_openai():
         return {"ok": False, "error": str(e)}
 
 # -----------------------------
-# LLM 프롬프트/호출
+# LLM 프롬프트/호출 (예비; 현재 predict는 페르소나 방식 사용)
 # -----------------------------
 def _build_prompt(payload: PredictRequest) -> str:
     audience = ", ".join(filter(None, [
@@ -289,53 +621,92 @@ def _call_llm(prompt: str) -> PredictResponse:
 # -----------------------------
 @app.post("/api/predict", response_model=PredictResponse)
 def predict(req: PredictRequest):
-    try:
-        if not req.marketing_a and not req.marketing_b:
-            raise HTTPException(status_code=400, detail="At least one of marketing_a or marketing_b must be provided")
-        
-        # Validate API key first
-        api_key = (os.getenv("OPENAI_API_KEY") or "").strip()
-        if not api_key:
-            raise HTTPException(status_code=500, detail="Missing OPENAI_API_KEY in environment")
-        
-        # 1) 프롬프트 생성 & LLM 호출
-        prompt = _build_prompt(req)
-        result = _call_llm(prompt)   # PredictResponse 객체
+    # 1) 페르소나 샘플링
+    personas = sample_personas(req, topN=5)
 
-        # 2) A/B 중 더 높은 예측 CTR
-        ai_top_ctr_choice = "A" if float(result.ctr_a) >= float(result.ctr_b) else "B"
+    # 2) LLM 평가(배치) → 정규화 CTR(0~1 상대 스코어)
+    rows, winner_kw = llm_persona_scores(req, personas)
+    ctr_a, ctr_b, reasons_a, reasons_b = weighted_ctr_from_scores(rows)
 
-        # 3) JSONL 한 줄 저장 (None 방어)
-        stored = ABTestStoredResult(
-            age_groups=req.age_groups,
-            genders=req.genders,
-            interests=(req.interests or ""),
-            category=(req.category or ""),
-            marketing_a=req.marketing_a,
-            marketing_b=req.marketing_b,
-            pred_ctr_a=float(result.ctr_a),
-            pred_ctr_b=float(result.ctr_b),
-            ai_generated_text=result.ai_suggestion,  # 제3의 문구
-            ai_top_ctr_choice=ai_top_ctr_choice,
-            user_final_text=None,
-        )
-        row = stored.model_dump() if hasattr(stored, "model_dump") else stored.dict()
-        append_jsonl(RESULTS_PATH, row)
+    # 3) 과거 유사 상황 팔로우(하드/소프트)로 보정
+    follow = _knn_follow(
+        category=req.category,
+        ages=req.age_groups or [],
+        genders=req.genders or [],
+        interests=req.interests or "",
+        A=req.marketing_a, B=req.marketing_b,
+        k=8, tau_hard=0.92
+    )
+    if follow.get("mode") == "hard":
+        if follow["follow_class"] == "A":
+            ctr_a, ctr_b = max(ctr_a, 0.65), min(ctr_b, 0.35)
+        elif follow["follow_class"] == "B":
+            ctr_b, ctr_a = max(ctr_b, 0.65), min(ctr_a, 0.35)
+        else:
+            ctr_a, ctr_b = 0.45, 0.45
+    elif follow.get("mode") == "soft":
+        probs = follow["probs"]
+        lam = 0.35
+        ctr_a = (1-lam)*ctr_a + lam*probs.get("A",0.0)
+        ctr_b = (1-lam)*ctr_b + lam*probs.get("B",0.0)
 
-        # 4) 응답 보강 후 반환
-        result.ai_top_ctr_choice = ai_top_ctr_choice
-        result.log_id = stored.log_id
-        return result
+    # 4) 현실 CTR 범위로 캘리브레이션 (비율값)
+    ctr_a = calibrate_ctr(ctr_a, req.category, shrink=0.35)
+    ctr_b = calibrate_ctr(ctr_b, req.category, shrink=0.35)
 
-    except HTTPException:
-        raise
-    except Exception as e:
-        print(f"Prediction error: {e}")
-        raise HTTPException(status_code=500, detail=f"Prediction failed: {str(e)}")
+    ai_top = "A" if ctr_a >= ctr_b else "B"
+
+    # 5) 승자 요인 반영 제3문구
+    third = generate_third_copy(
+        req,
+        winner_kw or (reasons_a if ai_top=="A" else reasons_b),
+        ai_top
+    )
+
+    # 6) 분석문구(간단 요약)
+    analysis_a = f"이유 키워드 상위: {', '.join(reasons_a) or '없음'}"
+    analysis_b = f"이유 키워드 상위: {', '.join(reasons_b) or '없음'}"
+
+    # 7) 저장(JSONL) 및 응답
+    result = PredictResponse(
+        ctr_a=float(ctr_a),
+        ctr_b=float(ctr_b),
+        analysis_a=analysis_a,
+        analysis_b=analysis_b,
+        ai_suggestion=third,
+        ai_top_ctr_choice=ai_top,
+        log_id=str(uuid.uuid4()),
+    )
+    stored = ABTestStoredResult(
+        log_id=result.log_id,
+        age_groups=req.age_groups or [],
+        genders=req.genders or [],
+        interests=req.interests or "",
+        category=req.category or "",
+        marketing_a=req.marketing_a,
+        marketing_b=req.marketing_b,
+        pred_ctr_a=float(result.ctr_a),
+        pred_ctr_b=float(result.ctr_b),
+        ai_generated_text=result.ai_suggestion,
+        ai_top_ctr_choice=ai_top,
+        user_final_text=None,
+    )
+    row = stored.model_dump() if hasattr(stored,"model_dump") else stored.dict()
+    append_jsonl(RESULTS_PATH, row)
+    return result
 
 # -----------------------------
 # 이미지 생성
 # -----------------------------
+class ImageGenerationRequest(BaseModel):
+    marketing_text: str
+    product_category: Optional[str] = None
+    target_audience: Optional[str] = None
+
+class ImageGenerationResponse(BaseModel):
+    image_url: str
+    prompt: str
+
 @app.post("/api/generate-image", response_model=ImageGenerationResponse)
 def generate_image(req: ImageGenerationRequest):
     try:
@@ -391,4 +762,30 @@ def log_user_choice(payload: UserChoiceIn):
             "timestamp": time.time(),
             "user_final_text": payload.user_final_text,
         })
+    # 인덱스에 즉시 반영
+    if ok:
+        for r in _load_jsonl(RESULTS_PATH)[::-1]:  # 최근부터 탐색
+            if r.get("log_id") == payload.log_id and r.get("user_final_text"):
+                try:
+                    vec = _embed_text(_feature_sentence(
+                        r.get("category",""), r.get("age_groups",[]), r.get("genders",[]),
+                        r.get("interests",""), r.get("marketing_a",""), r.get("marketing_b","")
+                    ))
+                except Exception:
+                    vec = None
+                if vec is not None:
+                    _INDEX.append({
+                        "log_id": r.get("log_id"),
+                        "vec": vec,
+                        "ts": float(r.get("timestamp", time.time())),
+                        "category": (r.get("category","") or "").lower().strip(),
+                        "ages": set(map(str.lower, r.get("age_groups",[]))),
+                        "genders": set(map(str.lower, r.get("genders",[]))),
+                        "A": r.get("marketing_a",""),
+                        "B": r.get("marketing_b",""),
+                        "final_text": r.get("user_final_text",""),
+                        "final_class": _to_class(r),
+                    })
+                break
+
     return {"ok": True, "updated_inline": ok}
