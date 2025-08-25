@@ -422,9 +422,11 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:3000",
-        "https://your-netlify-app.netlify.app",  # 실제 배포 URL로 교체
     ],
     allow_origin_regex=r"https://.*\.netlify\.app$",
+        "https://your-netlify-app.netlify.app",  # Netlify URL로 변경
+        "https://*.netlify.app"  # 모든 Netlify 서브도메인 허용
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
