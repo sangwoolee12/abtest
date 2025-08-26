@@ -1,15 +1,10 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
 import { useNavigate } from 'react-router-dom';
-import chevronDown from '../assets/chevron-down.svg';
-import companyLogo1 from '../assets/company-logo-1.svg';
-import companyLogo2 from '../assets/company-logo-2.svg';
-import companyLogo3 from '../assets/company-logo-3.svg';
 
 const TargetScreenContainer = styled.div`
   width: 100%;
   min-height: 100vh;
-  background: #FFFFFF;
   position: relative;
   overflow: hidden;
 `;
@@ -20,8 +15,10 @@ const BackgroundNoise = styled.div`
   left: 0;
   width: 100%;
   height: 100%;
-  background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><filter id="noise"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="4" stitchTiles="stitch"/></filter><rect width="100%" height="100%" filter="url(%23noise)" opacity="0.1"/></svg>');
-  backdrop-filter: blur(64px);
+  background-image: url('../assets/background.jpeg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
   z-index: 1;
 `;
 
@@ -31,9 +28,17 @@ const Header = styled.header`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 30px 80px;
+  padding: 16px 20px;
   background: rgba(255, 255, 255, 0.9);
   backdrop-filter: blur(10px);
+
+  @media (min-width: 768px) {
+    padding: 30px 40px;
+  }
+
+  @media (min-width: 1024px) {
+    padding: 30px 80px;
+  }
 `;
 
 const Logo = styled.div`
@@ -89,62 +94,25 @@ const LogoText = styled.h1`
   margin: 0;
 `;
 
-const Navigation = styled.nav`
-  display: flex;
-  align-items: center;
-  gap: 74px;
-`;
-
-const NavItems = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 33px;
-`;
-
-const NavItem = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  cursor: pointer;
-  font-family: 'Plus Jakarta Sans', sans-serif;
-  font-weight: 600;
-  font-size: 14px;
-  line-height: 1.26;
-  color: #020407;
-`;
-
-const NavItemText = styled.span``;
-
-const ChevronIcon = styled.img`
-  width: 20px;
-  height: 20px;
-`;
-
-const ContactButton = styled.button`
-  width: 134px;
-  height: 45px;
-  border: 1px solid #EA5F38;
-  border-radius: 1000px;
-  background: transparent;
-  color: #EA5F38;
-  font-family: 'HK Grotesk', sans-serif;
-  font-weight: 600;
-  font-size: 16px;
-  line-height: 1.2;
-  cursor: pointer;
-  transition: all 0.3s ease;
-
-  &:hover {
-    background: #EA5F38;
-    color: white;
-  }
-`;
-
 const MainContent = styled.main`
   position: relative;
   z-index: 5;
-  padding: 80px;
+  padding: 32px 20px;
   min-height: calc(100vh - 120px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto;
+  max-width: 100%;
+
+  @media (min-width: 768px) {
+    padding: 60px 40px;
+  }
+
+  @media (min-width: 1024px) {
+    padding: 80px;
+  }
 `;
 
 const PageHeader = styled.div`
@@ -155,10 +123,18 @@ const PageHeader = styled.div`
 const PageTitle = styled.h2`
   font-family: 'Apple SD Gothic Neo', sans-serif;
   font-weight: 600;
-  font-size: 36px;
+  font-size: 24px;
   line-height: 1.2;
   color: #000000;
   margin: 0;
+
+  @media (min-width: 768px) {
+    font-size: 32px;
+  }
+
+  @media (min-width: 1024px) {
+    font-size: 36px;
+  }
 `;
 
 const TabContainer = styled.div`
@@ -173,25 +149,30 @@ const Tab = styled.div`
   background: ${props => props.isActive ? '#FAFAFA' : 'transparent'};
   border: ${props => props.isActive ? '1px solid #ECEDF0' : 'none'};
   border-radius: 8px;
-  cursor: pointer;
+  cursor: default;
   font-family: 'Roboto', sans-serif;
   font-weight: ${props => props.isActive ? '500' : '400'};
   font-size: 16px;
   line-height: 1.5;
-  color: ${props => props.isActive ? '#222222' : '#6A6A6A'};
+  color: ${props => props.isActive ? '#000000' : '#6A6A6A'};
   transition: all 0.3s ease;
-
-  &:hover {
-    background: #FAFAFA;
-  }
 `;
 
 const FilterContainer = styled.div`
-  max-width: 850px;
+  max-width: 100%;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 30px;
+  gap: 20px;
+
+  @media (min-width: 768px) {
+    max-width: 700px;
+    gap: 30px;
+  }
+
+  @media (min-width: 1024px) {
+    max-width: 850px;
+  }
 `;
 
 const FilterBlock = styled.div`
@@ -258,6 +239,79 @@ const FilterOption = styled.div`
   }
 `;
 
+// 페르소나 관련 스타일드 컴포넌트들
+const PersonaSection = styled.div`
+  margin-bottom: 10px;
+`;
+
+const PersonaToggle = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 15px;
+  margin-bottom: 10px;
+`;
+
+const ToggleButton = styled.button`
+  padding: 0 5px;
+  height: 48px;
+  background: ${props => props.isActive ? 'rgba(153, 234, 72, 0.9)' : '#FFFFFF'};
+  border: 1px solid #ECEDF0;
+  border-radius: 12px;
+  font-family: 'Hiragino Sans', sans-serif;
+  font-weight: 600;
+  font-size: 14px;
+  color: ${props => props.isActive ? '#FFFFFF' : '#222222'};
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  min-width: 0;
+
+  &:hover {
+    background: ${props => props.isActive ? 'rgba(153, 234, 72, 0.9)' : '#FAFAFA'};
+  }
+`;
+
+const PersonaGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+`;
+
+const PersonaButton = styled.button`
+  padding: 16px;
+  background: ${props => props.isSelected ? 'rgba(153, 234, 72, 0.9)' : '#FFFFFF'};
+  border: 2px solid ${props => props.isSelected ? '#99EA48' : '#ECEDF0'};
+  border-radius: 12px;
+  font-family: 'Hiragino Sans', sans-serif;
+  font-weight: 600;
+  font-size: 14px;
+  color: ${props => props.isSelected ? '#FFFFFF' : '#222222'};
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-align: left;
+
+  &:hover {
+    background: ${props => props.isSelected ? 'rgba(153, 234, 72, 0.8)' : '#FAFAFA'};
+    border-color: ${props => props.isSelected ? '#8DD43A' : '#D1D5DB'};
+  }
+`;
+
+const PersonaName = styled.div`
+  font-weight: 700;
+  margin-bottom: 4px;
+`;
+
+const PersonaDetails = styled.div`
+  font-size: 12px;
+  color: ${props => props.isSelected ? 'rgba(255, 255, 255, 0.8)' : '#666666'};
+  line-height: 1.4;
+`;
+
 const FilterOptionText = styled.span`
   font-family: 'Hiragino Sans', sans-serif;
   font-weight: 600;
@@ -297,10 +351,10 @@ const ActionButton = styled.button`
   justify-content: center;
   gap: 12px;
   padding: 16px 32px;
-  background: #C3C3C3;
+  background:rgba(174, 174, 174, 0.76);
   border: none;
   border-radius: 70px;
-  color: #010205;
+  color:rgb(0, 0, 0);
   font-family: 'Plus Jakarta Sans', sans-serif;
   font-weight: 700;
   font-size: 16px;
@@ -322,41 +376,86 @@ const ActionButton = styled.button`
   }
 `;
 
-const Footer = styled.footer`
-  position: relative;
-  z-index: 5;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 64px;
-  padding: 40px 80px;
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(10px);
-`;
-
-const CompanyLogos = styled.div`
-  display: flex;
-  gap: 27.93px;
-  align-items: center;
-`;
-
-const CompanyLogo = styled.div`
-  width: 108.3px;
-  height: 33.32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-`;
-
 const TargetScreen = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('Target');
   const [selectedAgeGroups, setSelectedAgeGroups] = useState([]);
   const [selectedGenders, setSelectedGenders] = useState([]);
   const [interestInput, setInterestInput] = useState('');
+  const [usePersonas, setUsePersonas] = useState(false);
+  const [selectedPersona, setSelectedPersona] = useState(null);
 
   const ageGroups = ['10대', '20대', '30대', '40대', '50대', '60대', '70대 이상'];
   const genders = ['남성', '여성'];
+  
+  // 8가지 페르소나 정의
+  const personas = [
+    {
+      id: 'p1',
+      name: '뷰티/화장품',
+      age: '20대',
+      gender: '여성',
+      interests: '생활, 노하우, 쇼핑',
+      categories: '뷰티, 화장품, 스킨케어'
+    },
+    {
+      id: 'p2',
+      name: '게임',
+      age: '20대',
+      gender: '남성',
+      interests: '취미, 여가, 여행',
+      categories: '게임, 전자제품, 엔터테인먼트'
+    },
+    {
+      id: 'p3',
+      name: '패션/잡화',
+      age: '30대',
+      gender: '여성',
+      interests: '생활, 노하우, 쇼핑',
+      categories: '패션, 액세서리, 라이프스타일'
+    },
+    {
+      id: 'p4',
+      name: '부동산/재테크',
+      age: '30대',
+      gender: '남성',
+      interests: '지식, 동향',
+      categories: '부동산, 투자, 금융'
+    },
+    {
+      id: 'p5',
+      name: '여행/숙박/항공',
+      age: '40대',
+      gender: '여성',
+      interests: '취미, 여가, 여행',
+      categories: '여행, 숙박, 항공'
+    },
+    {
+      id: 'p6',
+      name: '스포츠/레저',
+      age: '40대',
+      gender: '남성',
+      interests: '취미, 여가, 여행',
+      categories: '스포츠, 아웃도어, 레저'
+    },
+    {
+      id: 'p7',
+      name: '식음료/요리',
+      age: '50대',
+      gender: '여성',
+      interests: '생활, 노하우, 쇼핑',
+      categories: '식음료, 요리'
+    },
+    {
+      id: 'p8',
+      name: '정치/사회',
+      age: '50대',
+      gender: '남성',
+      interests: '지식, 동향',
+      categories: '정치, 사회이슈, 뉴스'
+    }
+  ];
+
   // 사용자가 자유롭게 관심사를 입력합니다 (쉼표로 구분 가능)
 
   const handleLogoClick = () => {
@@ -383,6 +482,23 @@ const TargetScreen = () => {
     );
   };
 
+  const handlePersonaToggle = () => {
+    setUsePersonas(!usePersonas);
+    if (usePersonas) {
+      setSelectedPersona(null);
+      setSelectedAgeGroups([]);
+      setSelectedGenders([]);
+      setInterestInput('');
+    }
+  };
+
+  const handlePersonaSelect = (persona) => {
+    setSelectedPersona(persona);
+    setSelectedAgeGroups([persona.age]);
+    setSelectedGenders([persona.gender]);
+    setInterestInput(persona.interests);
+  };
+
   const handleInterestInputChange = (e) => {
     setInterestInput(e.target.value);
   };
@@ -398,6 +514,12 @@ const TargetScreen = () => {
       case 'interest':
         setInterestInput('');
         break;
+      case 'persona':
+        setSelectedPersona(null);
+        setSelectedAgeGroups([]);
+        setSelectedGenders([]);
+        setInterestInput('');
+        break;
       default:
         break;
     }
@@ -409,6 +531,10 @@ const TargetScreen = () => {
         age_groups: selectedAgeGroups,
         genders: selectedGenders,
         interests: interestInput,
+        persona: selectedPersona ? {
+          id: selectedPersona.id,
+          name: selectedPersona.name
+        } : null
       };
       localStorage.setItem('target', JSON.stringify(payload));
     } catch (e) {
@@ -417,7 +543,7 @@ const TargetScreen = () => {
     navigate('/product');
   };
 
-  const isTargetValid = selectedAgeGroups.length > 0 && selectedGenders.length > 0 && (interestInput || '').trim().length > 0;
+  const isTargetValid = (selectedAgeGroups.length > 0 && selectedGenders.length > 0 && (interestInput || '').trim().length > 0) || selectedPersona;
 
   return (
     <TargetScreenContainer>
@@ -430,30 +556,8 @@ const TargetScreen = () => {
             <LogoSquare2 />
             <LogoSquare3 />
           </LogoIcon>
-          <LogoText>로고</LogoText>
+          <LogoText>Clicklit!</LogoText>
         </Logo>
-        
-        <Navigation>
-          <NavItems>
-            <NavItem>
-              <NavItemText>Service</NavItemText>
-              <ChevronIcon src={chevronDown} alt="dropdown" />
-            </NavItem>
-            <NavItem>
-              <NavItemText>Agency</NavItemText>
-              <ChevronIcon src={chevronDown} alt="dropdown" />
-            </NavItem>
-            <NavItem>
-              <NavItemText>Case study</NavItemText>
-              <ChevronIcon src={chevronDown} alt="dropdown" />
-            </NavItem>
-            <NavItem>
-              <NavItemText>Resources</NavItemText>
-              <ChevronIcon src={chevronDown} alt="dropdown" />
-            </NavItem>
-          </NavItems>
-          <ContactButton>Contact Us</ContactButton>
-        </Navigation>
       </Header>
 
       <MainContent>
@@ -462,33 +566,63 @@ const TargetScreen = () => {
         </PageHeader>
 
         <TabContainer>
-          <Tab 
-            isActive={activeTab === 'Target'} 
-            onClick={() => handleTabClick('Target')}
-          >
+          <Tab isActive={true}>
             Target
           </Tab>
-          <Tab 
-            isActive={activeTab === 'Product'} 
-            onClick={() => handleTabClick('Product')}
-          >
+          <Tab isActive={false}>
             Product
           </Tab>
-          <Tab 
-            isActive={activeTab === 'Prediction'} 
-            onClick={() => handleTabClick('Prediction')}
-          >
+          <Tab isActive={false}>
             Prediction
           </Tab>
-          <Tab 
-            isActive={activeTab === 'Generate Images'} 
-            onClick={() => handleTabClick('Generate Images')}
-          >
+          <Tab isActive={false}>
             Generate Images
           </Tab>
         </TabContainer>
 
         <FilterContainer>
+          {/* 페르소나 선택 섹션 */}
+          <PersonaSection>
+            <FilterHeader>
+              <FilterTitle>페르소나 선택</FilterTitle>
+              <ResetButton onClick={() => handleReset('persona')}>초기화</ResetButton>
+            </FilterHeader>
+            
+            <PersonaToggle>
+              <ToggleButton 
+                isActive={!usePersonas} 
+                onClick={handlePersonaToggle}
+              >
+                직접 입력
+              </ToggleButton>
+              <ToggleButton 
+                isActive={usePersonas} 
+                onClick={handlePersonaToggle}
+              >
+                페르소나 선택
+              </ToggleButton>
+            </PersonaToggle>
+
+            {usePersonas && (
+              <PersonaGrid>
+                {personas.map((persona) => (
+                  <PersonaButton
+                    key={persona.id}
+                    isSelected={selectedPersona?.id === persona.id}
+                    onClick={() => handlePersonaSelect(persona)}
+                  >
+                    <PersonaName>{persona.name}</PersonaName>
+                    <PersonaDetails isSelected={selectedPersona?.id === persona.id}>
+                      {persona.age} • {persona.gender}<br/>
+                      {persona.interests}<br/>
+                      {persona.categories}
+                    </PersonaDetails>
+                  </PersonaButton>
+                ))}
+              </PersonaGrid>
+            )}
+          </PersonaSection>
+
           <FilterBlock>
             <FilterHeader>
               <FilterTitle>타겟 연령대(복수 선택 가능)</FilterTitle>
@@ -499,7 +633,11 @@ const TargetScreen = () => {
                 <FilterOption
                   key={age}
                   isSelected={selectedAgeGroups.includes(age)}
-                  onClick={() => handleAgeGroupToggle(age)}
+                  onClick={() => !selectedPersona && handleAgeGroupToggle(age)}
+                  style={{ 
+                    opacity: selectedPersona ? 0.5 : 1,
+                    cursor: selectedPersona ? 'not-allowed' : 'pointer'
+                  }}
                 >
                   <FilterOptionText>{age}</FilterOptionText>
                 </FilterOption>
@@ -518,7 +656,11 @@ const TargetScreen = () => {
                 <FilterOption
                   key={gender}
                   isSelected={selectedGenders.includes(gender)}
-                  onClick={() => handleGenderToggle(gender)}
+                  onClick={() => !selectedPersona && handleGenderToggle(gender)}
+                  style={{ 
+                    opacity: selectedPersona ? 0.5 : 1,
+                    cursor: selectedPersona ? 'not-allowed' : 'pointer'
+                  }}
                 >
                   <FilterOptionText>{gender}</FilterOptionText>
                 </FilterOption>
@@ -537,6 +679,11 @@ const TargetScreen = () => {
               placeholder="관심사를 입력하세요 (예: #KBO, #유니폼, #야구)"
               value={interestInput}
               onChange={handleInterestInputChange}
+              disabled={!!selectedPersona}
+              style={{ 
+                opacity: selectedPersona ? 0.5 : 1,
+                cursor: selectedPersona ? 'not-allowed' : 'pointer'
+              }}
             />
           </FilterBlock>
 
@@ -546,19 +693,7 @@ const TargetScreen = () => {
         </FilterContainer>
       </MainContent>
 
-      <Footer>
-        <CompanyLogos>
-          <CompanyLogo>
-            <img src={companyLogo1} alt="Company 1" style={{ width: '100%', height: 'auto' }} />
-          </CompanyLogo>
-          <CompanyLogo>
-            <img src={companyLogo2} alt="Company 2" style={{ width: '100%', height: 'auto' }} />
-          </CompanyLogo>
-          <CompanyLogo>
-            <img src={companyLogo3} alt="Company 3" style={{ width: '100%', height: 'auto' }} />
-          </CompanyLogo>
-        </CompanyLogos>
-      </Footer>
+
     </TargetScreenContainer>
   );
 };

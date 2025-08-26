@@ -1,15 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import styled from 'styled-components';
 import { useNavigate } from 'react-router-dom';
-import chevronDown from '../assets/chevron-down.svg';
-import companyLogo1 from '../assets/company-logo-1.svg';
-import companyLogo2 from '../assets/company-logo-2.svg';
-import companyLogo3 from '../assets/company-logo-3.svg';
 
 const PredictionScreenContainer = styled.div`
   width: 100%;
   min-height: 100vh;
-  background: #FFFFFF;
   position: relative;
   overflow: hidden;
 `;
@@ -20,8 +15,10 @@ const BackgroundNoise = styled.div`
   left: 0;
   width: 100%;
   height: 100%;
-  background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><filter id="noise"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="4" stitchTiles="stitch"/></filter><rect width="100%" height="100%" filter="url(%23noise)" opacity="0.1"/></svg>');
-  backdrop-filter: blur(64px);
+  background-image: url('../assets/background.jpeg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
   z-index: 1;
 `;
 
@@ -31,9 +28,17 @@ const Header = styled.header`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 30px 80px;
+  padding: 16px 20px;
   background: rgba(255, 255, 255, 0.9);
   backdrop-filter: blur(10px);
+
+  @media (min-width: 768px) {
+    padding: 30px 40px;
+  }
+
+  @media (min-width: 1024px) {
+    padding: 30px 80px;
+  }
 `;
 
 const Logo = styled.div`
@@ -89,62 +94,25 @@ const LogoText = styled.h1`
   margin: 0;
 `;
 
-const Navigation = styled.nav`
-  display: flex;
-  align-items: center;
-  gap: 74px;
-`;
-
-const NavItems = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 33px;
-`;
-
-const NavItem = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  cursor: pointer;
-  font-family: 'Plus Jakarta Sans', sans-serif;
-  font-weight: 600;
-  font-size: 14px;
-  line-height: 1.26;
-  color: #020407;
-`;
-
-const NavItemText = styled.span``;
-
-const ChevronIcon = styled.img`
-  width: 20px;
-  height: 20px;
-`;
-
-const ContactButton = styled.button`
-  width: 134px;
-  height: 45px;
-  border: 1px solid #EA5F38;
-  border-radius: 1000px;
-  background: transparent;
-  color: #EA5F38;
-  font-family: 'HK Grotesk', sans-serif;
-  font-weight: 600;
-  font-size: 16px;
-  line-height: 1.2;
-  cursor: pointer;
-  transition: all 0.3s ease;
-
-  &:hover {
-    background: #EA5F38;
-    color: white;
-  }
-`;
-
 const MainContent = styled.main`
   position: relative;
   z-index: 5;
-  padding: 80px;
+  padding: 32px 20px;
   min-height: calc(100vh - 120px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto;
+  max-width: 100%;
+
+  @media (min-width: 768px) {
+    padding: 60px 40px;
+  }
+
+  @media (min-width: 1024px) {
+    padding: 80px;
+  }
 `;
 
 const PageHeader = styled.div`
@@ -155,12 +123,22 @@ const PageHeader = styled.div`
 const PageTitle = styled.h2`
   font-family: 'Apple SD Gothic Neo', sans-serif;
   font-weight: 600;
-  font-size: 36px;
+  font-size: 24px;
   line-height: 1.2;
   color: #000000;
-  margin: 0;
-  max-width: 589px;
+  margin: 0 auto;
+  max-width: 100%;
   text-align: center;
+  width: 100%;
+
+  @media (min-width: 768px) {
+    font-size: 32px;
+    max-width: 589px;
+  }
+
+  @media (min-width: 1024px) {
+    font-size: 36px;
+  }
 `;
 
 const TabContainer = styled.div`
@@ -175,30 +153,37 @@ const Tab = styled.div`
   background: ${props => (props.isActive ? '#FAFAFA' : 'transparent')};
   border: ${props => (props.isActive ? '1px solid #ECEDF0' : 'none')};
   border-radius: 8px;
-  cursor: pointer;
+  cursor: default;
   font-family: 'Roboto', sans-serif;
   font-weight: ${props => (props.isActive ? '500' : '400')};
   font-size: 16px;
   line-height: 1.5;
-  color: ${props => (props.isActive ? '#222222' : '#6A6A6A')};
+  color: ${props => (props.isActive ? '#000000' : '#6A6A6A')};
   transition: all 0.3s ease;
-
-  &:hover {
-    background: #FAFAFA;
-  }
 `;
 
+
+
 const SummaryPanel = styled.div`
-  width: 612px;
+  width: 100%;
   height: 48px;
   background: #FFFFFF;
   border: 1px solid #DDDDDD;
   border-radius: 12px;
-  padding: 1px 33px;
+  padding: 1px 16px;
   display: flex;
   align-items: center;
   gap: 16px;
   margin: 0 auto 18px;
+
+  @media (min-width: 768px) {
+    padding: 1px 28px;
+  }
+
+  @media (min-width: 1024px) {
+    width: 612px;
+    padding: 1px 33px;
+  }
 `;
 
 const SummarySection = styled.div`
@@ -231,22 +216,43 @@ const VerticalDivider = styled.div`
 `;
 
 const ResultsContainer = styled.div`
-  max-width: 969px;
+  max-width: 100%;
   margin: 0 auto;
   display: flex;
-  gap: 24px;
-  justify-content: stretch;
+  flex-direction: column;
+  gap: 20px;
+
+  @media (min-width: 768px) {
+    max-width: 800px;
+    gap: 24px;
+  }
+
+  @media (min-width: 1024px) {
+    max-width: 969px;
+    flex-direction: row;
+    justify-content: stretch;
+  }
 `;
 
 const ResultCard = styled.div`
   flex: 1;
   background: #FFFFFF;
   border-radius: 20px;
-  padding: 32px;
+  padding: 20px;
   box-shadow: 0px 4px 4px 0px rgba(0, 0, 0, 0.25);
   display: flex;
   flex-direction: column;
-  gap: 56px;
+  gap: 24px;
+
+  @media (min-width: 768px) {
+    padding: 28px;
+    gap: 32px;
+  }
+
+  @media (min-width: 1024px) {
+    padding: 32px;
+    gap: 40px;
+  }
 `;
 
 const CardHeader = styled.div`
@@ -360,13 +366,81 @@ const ChartValue = styled.div`
 
 const ContentPlaceholder = styled.div`
   font-family: 'Plus Jakarta Sans', sans-serif;
+  font-weight: 400;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #333333;
+  text-align: left;
+  margin-top: 16px;
+  padding: 16px;
+  background: #F8F9FA;
+  border-radius: 12px;
+  border: 1px solid #E9ECEF;
+  white-space: pre-wrap;
+  word-break: break-word;
+`;
+
+const AnalysisSection = styled.div`
+  margin-top: 16px;
+`;
+
+const AnalysisHeader = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+`;
+
+const AnalysisTitle = styled.h4`
+  font-family: 'Plus Jakarta Sans', sans-serif;
   font-weight: 600;
-  font-size: 26px;
-  line-height: 1.5;
-  letter-spacing: -0.03em;
+  font-size: 16px;
   color: #010205;
-  text-align: center;
-  margin-top: 24px;
+  margin: 0;
+`;
+
+const ToggleButton = styled.button`
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: #FFFFFF;
+  border: 1px solid #DEE2E6;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-weight: 500;
+  font-size: 12px;
+  color: #6C757D;
+  transition: all 0.3s ease;
+
+  &:hover {
+    background: #F8F9FA;
+    border-color: #ADB5BD;
+  }
+
+  svg {
+    transition: transform 0.3s ease;
+    transform: ${props => props.isExpanded ? 'rotate(180deg)' : 'rotate(0deg)'};
+  }
+`;
+
+const AnalysisContent = styled.div`
+  max-height: ${props => props.isExpanded ? 'none' : '120px'};
+  overflow: hidden;
+  transition: max-height 0.3s ease;
+  position: relative;
+`;
+
+const AnalysisOverlay = styled.div`
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 40px;
+  background: linear-gradient(transparent, #F8F9FA);
+  display: ${props => props.isExpanded ? 'none' : 'block'};
+  pointer-events: none;
 `;
 
 const ActionButton = styled.button`
@@ -436,32 +510,6 @@ const ArrowVertical = styled.div`
   border-left: 2px solid #000000;
 `;
 
-const Footer = styled.footer`
-  position: relative;
-  z-index: 5;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 64px;
-  padding: 40px 80px;
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(10px);
-`;
-
-const CompanyLogos = styled.div`
-  display: flex;
-  gap: 27.93px;
-  align-items: center;
-`;
-
-const CompanyLogo = styled.div`
-  width: 108.3px;
-  height: 33.32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-`;
-
 const PredictionScreen = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('Prediction');
@@ -476,6 +524,13 @@ const PredictionScreen = () => {
   const [choiceLocked, setChoiceLocked] = useState(false);
   const [chosenOption, setChosenOption] = useState(''); // 'A' | 'B' | 'C'
   const [chosenText, setChosenText] = useState('');
+  
+  // 토글 상태 관리
+  const [expandedAnalysis, setExpandedAnalysis] = useState({
+    a: false,
+    b: false,
+    c: false
+  });
 
   const logId = result?.log_id || '';
   const lockKey = logId ? `choice_lock_${logId}` : '';
@@ -498,6 +553,13 @@ const PredictionScreen = () => {
 
   const handleLogoClick = () => {
     navigate('/');
+  };
+
+  const toggleAnalysis = (option) => {
+    setExpandedAnalysis(prev => ({
+      ...prev,
+      [option]: !prev[option]
+    }));
   };
 
   const handleTabClick = (tab) => {
@@ -541,9 +603,8 @@ const PredictionScreen = () => {
         });
       }
 
-      // 2) 이미지 생성
+      // 2) 이미지 생성 - 무드 이미지만 생성
       const payload = {
-        marketing_text: marketingText,
         product_category: product.category || null,
         target_audience: [...(target.age_groups || []), ...(target.genders || [])].join(', ')
       };
@@ -641,30 +702,8 @@ const PredictionScreen = () => {
             <LogoSquare2 />
             <LogoSquare3 />
           </LogoIcon>
-          <LogoText>로고</LogoText>
+          <LogoText>Clicklit!</LogoText>
         </Logo>
-
-        <Navigation>
-          <NavItems>
-            <NavItem>
-              <NavItemText>Service</NavItemText>
-              <ChevronIcon src={chevronDown} alt="dropdown" />
-            </NavItem>
-            <NavItem>
-              <NavItemText>Agency</NavItemText>
-              <ChevronIcon src={chevronDown} alt="dropdown" />
-            </NavItem>
-            <NavItem>
-              <NavItemText>Case study</NavItemText>
-              <ChevronIcon src={chevronDown} alt="dropdown" />
-            </NavItem>
-            <NavItem>
-              <NavItemText>Resources</NavItemText>
-              <ChevronIcon src={chevronDown} alt="dropdown" />
-            </NavItem>
-          </NavItems>
-          <ContactButton>Contact Us</ContactButton>
-        </Navigation>
       </Header>
 
       <MainContent>
@@ -673,28 +712,16 @@ const PredictionScreen = () => {
         </PageHeader>
 
         <TabContainer>
-          <Tab
-            isActive={activeTab === 'Target'}
-            onClick={() => handleTabClick('Target')}
-          >
+          <Tab isActive={false}>
             Target
           </Tab>
-          <Tab
-            isActive={activeTab === 'Product'}
-            onClick={() => handleTabClick('Product')}
-          >
+          <Tab isActive={false}>
             Product
           </Tab>
-          <Tab
-            isActive={activeTab === 'Prediction'}
-            onClick={() => handleTabClick('Prediction')}
-          >
+          <Tab isActive={true}>
             Prediction
           </Tab>
-          <Tab
-            isActive={activeTab === 'Generate Images'}
-            onClick={() => handleTabClick('Generate Images')}
-          >
+          <Tab isActive={false}>
             Generate Images
           </Tab>
         </TabContainer>
@@ -741,7 +768,24 @@ const PredictionScreen = () => {
               </div>
             </ChartContainer>
 
-            <ContentPlaceholder>{error ? error : (result.analysis_a || '')}</ContentPlaceholder>
+            <AnalysisSection>
+              <AnalysisHeader>
+                <AnalysisTitle>상세 분석</AnalysisTitle>
+                <ToggleButton 
+                  isExpanded={expandedAnalysis.a}
+                  onClick={() => toggleAnalysis('a')}
+                >
+                  {expandedAnalysis.a ? '접기' : '펼치기'}
+                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                    <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </ToggleButton>
+              </AnalysisHeader>
+              <AnalysisContent isExpanded={expandedAnalysis.a}>
+                <ContentPlaceholder>{error ? error : (result.analysis_a || '')}</ContentPlaceholder>
+                <AnalysisOverlay isExpanded={expandedAnalysis.a} />
+              </AnalysisContent>
+            </AnalysisSection>
 
             {generatedImages.A && (
               <GeneratedImage>
@@ -799,7 +843,24 @@ const PredictionScreen = () => {
               </div>
             </ChartContainer>
 
-            <ContentPlaceholder>{error ? error : (result.analysis_b || '')}</ContentPlaceholder>
+            <AnalysisSection>
+              <AnalysisHeader>
+                <AnalysisTitle>상세 분석</AnalysisTitle>
+                <ToggleButton 
+                  isExpanded={expandedAnalysis.b}
+                  onClick={() => toggleAnalysis('b')}
+                >
+                  {expandedAnalysis.b ? '접기' : '펼치기'}
+                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                    <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </ToggleButton>
+              </AnalysisHeader>
+              <AnalysisContent isExpanded={expandedAnalysis.b}>
+                <ContentPlaceholder>{error ? error : (result.analysis_b || '')}</ContentPlaceholder>
+                <AnalysisOverlay isExpanded={expandedAnalysis.b} />
+              </AnalysisContent>
+            </AnalysisSection>
 
             {generatedImages.B && (
               <GeneratedImage>
@@ -856,7 +917,24 @@ const PredictionScreen = () => {
               </div>
             </ChartContainer>
 
-            <ContentPlaceholder>{error ? error : (result.ai_suggestion || '')}</ContentPlaceholder>
+            <AnalysisSection>
+              <AnalysisHeader>
+                <AnalysisTitle>AI 추천 문구</AnalysisTitle>
+                <ToggleButton 
+                  isExpanded={expandedAnalysis.c}
+                  onClick={() => toggleAnalysis('c')}
+                >
+                  {expandedAnalysis.c ? '접기' : '펼치기'}
+                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                    <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </ToggleButton>
+              </AnalysisHeader>
+              <AnalysisContent isExpanded={expandedAnalysis.c}>
+                <ContentPlaceholder>{error ? error : (result.ai_suggestion || '')}</ContentPlaceholder>
+                <AnalysisOverlay isExpanded={expandedAnalysis.c} />
+              </AnalysisContent>
+            </AnalysisSection>
 
             {generatedImages.C && (
               <GeneratedImage>
@@ -889,31 +967,7 @@ const PredictionScreen = () => {
         </ResultsContainer>
       </MainContent>
 
-      <Footer>
-        <CompanyLogos>
-          <CompanyLogo>
-            <img
-              src={companyLogo1}
-              alt="Company 1"
-              style={{ width: '100%', height: 'auto' }}
-            />
-          </CompanyLogo>
-          <CompanyLogo>
-            <img
-              src={companyLogo2}
-              alt="Company 2"
-              style={{ width: '100%', height: 'auto' }}
-            />
-          </CompanyLogo>
-          <CompanyLogo>
-            <img
-              src={companyLogo3}
-              alt="Company 3"
-              style={{ width: '100%', height: 'auto' }}
-            />
-          </CompanyLogo>
-        </CompanyLogos>
-      </Footer>
+
     </PredictionScreenContainer>
   );
 };

@@ -1,15 +1,10 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
 import { useNavigate } from 'react-router-dom';
-import chevronDown from '../assets/chevron-down.svg';
-import companyLogo1 from '../assets/company-logo-1.svg';
-import companyLogo2 from '../assets/company-logo-2.svg';
-import companyLogo3 from '../assets/company-logo-3.svg';
 
 const ImageScreenContainer = styled.div`
   width: 100%;
   min-height: 100vh;
-  background: #FFFFFF;
   position: relative;
   overflow: hidden;
 `;
@@ -20,8 +15,10 @@ const BackgroundNoise = styled.div`
   left: 0;
   width: 100%;
   height: 100%;
-  background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><filter id="noise"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="4" stitchTiles="stitch"/></filter><rect width="100%" height="100%" filter="url(%23noise)" opacity="0.1"/></svg>');
-  backdrop-filter: blur(64px);
+  background-image: url('../assets/background.jpeg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
   z-index: 1;
 `;
 
@@ -31,9 +28,17 @@ const Header = styled.header`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 30px 80px;
+  padding: 16px 20px;
   background: rgba(255, 255, 255, 0.9);
   backdrop-filter: blur(10px);
+
+  @media (min-width: 768px) {
+    padding: 30px 40px;
+  }
+
+  @media (min-width: 1024px) {
+    padding: 30px 80px;
+  }
 `;
 
 const Logo = styled.div`
@@ -89,62 +94,25 @@ const LogoText = styled.h1`
   margin: 0;
 `;
 
-const Navigation = styled.nav`
-  display: flex;
-  align-items: center;
-  gap: 74px;
-`;
-
-const NavItems = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 33px;
-`;
-
-const NavItem = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  cursor: pointer;
-  font-family: 'Plus Jakarta Sans', sans-serif;
-  font-weight: 600;
-  font-size: 14px;
-  line-height: 1.26;
-  color: #020407;
-`;
-
-const NavItemText = styled.span``;
-
-const ChevronIcon = styled.img`
-  width: 20px;
-  height: 20px;
-`;
-
-const ContactButton = styled.button`
-  width: 134px;
-  height: 45px;
-  border: 1px solid #EA5F38;
-  border-radius: 1000px;
-  background: transparent;
-  color: #EA5F38;
-  font-family: 'HK Grotesk', sans-serif;
-  font-weight: 600;
-  font-size: 16px;
-  line-height: 1.2;
-  cursor: pointer;
-  transition: all 0.3s ease;
-
-  &:hover {
-    background: #EA5F38;
-    color: white;
-  }
-`;
-
 const MainContent = styled.main`
   position: relative;
   z-index: 5;
-  padding: 80px 188px;
+  padding: 32px 20px;
   min-height: calc(100vh - 120px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto;
+  max-width: 100%;
+
+  @media (min-width: 768px) {
+    padding: 60px 40px;
+  }
+
+  @media (min-width: 1024px) {
+    padding: 80px 188px;
+  }
 `;
 
 const PageHeader = styled.div`
@@ -155,11 +123,20 @@ const PageHeader = styled.div`
 const PageTitle = styled.h2`
   font-family: 'Apple SD Gothic Neo', sans-serif;
   font-weight: 600;
-  font-size: 36px;
+  font-size: 24px;
   line-height: 1.2;
   color: #000000;
   margin: 0;
-  max-width: 700px;
+  max-width: 100%;
+
+  @media (min-width: 768px) {
+    font-size: 32px;
+    max-width: 700px;
+  }
+
+  @media (min-width: 1024px) {
+    font-size: 36px;
+  }
 `;
 
 const TabContainer = styled.div`
@@ -191,8 +168,16 @@ const FilterBlock = styled.div`
   display: flex;
   flex-direction: column;
   gap: 16px;
-  width: 612px;
+  width: 100%;
   margin: 0 auto 18px;
+
+  @media (min-width: 768px) {
+    width: 500px;
+  }
+
+  @media (min-width: 1024px) {
+    width: 612px;
+  }
 `;
 
 const FilterHeader = styled.div`
@@ -299,22 +284,45 @@ const LoadingSpinner = styled.div`
 `;
 
 const ResultsContainer = styled.div`
-  max-width: 753px;
+  max-width: 100%;
   margin: 0 auto;
   display: flex;
-  gap: 24px;
+  flex-direction: column;
+  gap: 20px;
   justify-content: center;
+
+  @media (min-width: 768px) {
+    max-width: 600px;
+    flex-direction: row;
+    gap: 24px;
+  }
+
+  @media (min-width: 1024px) {
+    max-width: 753px;
+  }
 `;
 
 const ImageCard = styled.div`
-  width: 235px;
+  width: 100%;
   background: #FFFFFF;
   border-radius: 20px;
-  padding: 32px;
+  padding: 20px;
   box-shadow: 0px 4px 4px 0px rgba(0, 0, 0, 0.25);
   display: flex;
   flex-direction: column;
-  gap: 56px;
+  gap: 32px;
+
+  @media (min-width: 768px) {
+    width: 180px;
+    padding: 28px;
+    gap: 48px;
+  }
+
+  @media (min-width: 1024px) {
+    width: 235px;
+    padding: 32px;
+    gap: 56px;
+  }
 `;
 
 const ImagePlaceholder = styled.div`
@@ -376,32 +384,6 @@ const DownloadButton = styled.button`
   }
 `;
 
-const Footer = styled.footer`
-  position: relative;
-  z-index: 5;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 64px;
-  padding: 40px 80px;
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(10px);
-`;
-
-const CompanyLogos = styled.div`
-  display: flex;
-  gap: 27.93px;
-  align-items: center;
-`;
-
-const CompanyLogo = styled.div`
-  width: 108.3px;
-  height: 33.32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-`;
-
 const ImageScreen = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('Generate Images');
@@ -455,30 +437,8 @@ const ImageScreen = () => {
             <LogoSquare2 />
             <LogoSquare3 />
           </LogoIcon>
-          <LogoText>로고</LogoText>
+          <LogoText>Clicklit!</LogoText>
         </Logo>
-        
-        <Navigation>
-          <NavItems>
-            <NavItem>
-              <NavItemText>Service</NavItemText>
-              <ChevronIcon src={chevronDown} alt="dropdown" />
-            </NavItem>
-            <NavItem>
-              <NavItemText>Agency</NavItemText>
-              <ChevronIcon src={chevronDown} alt="dropdown" />
-            </NavItem>
-            <NavItem>
-              <NavItemText>Case study</NavItemText>
-              <ChevronIcon src={chevronDown} alt="dropdown" />
-            </NavItem>
-            <NavItem>
-              <NavItemText>Resources</NavItemText>
-              <ChevronIcon src={chevronDown} alt="dropdown" />
-            </NavItem>
-          </NavItems>
-          <ContactButton>Contact Us</ContactButton>
-        </Navigation>
       </Header>
 
       <MainContent>
@@ -556,19 +516,7 @@ const ImageScreen = () => {
         )}
       </MainContent>
 
-      <Footer>
-        <CompanyLogos>
-          <CompanyLogo>
-            <img src={companyLogo1} alt="Company 1" style={{ width: '100%', height: 'auto' }} />
-          </CompanyLogo>
-          <CompanyLogo>
-            <img src={companyLogo2} alt="Company 2" style={{ width: '100%', height: 'auto' }} />
-          </CompanyLogo>
-          <CompanyLogo>
-            <img src={companyLogo3} alt="Company 3" style={{ width: '100%', height: 'auto' }} />
-          </CompanyLogo>
-        </CompanyLogos>
-      </Footer>
+
     </ImageScreenContainer>
   );
 };

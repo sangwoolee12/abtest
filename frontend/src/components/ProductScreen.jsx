@@ -1,15 +1,10 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
 import { useNavigate } from 'react-router-dom';
-import chevronDown from '../assets/chevron-down.svg';
-import companyLogo1 from '../assets/company-logo-1.svg';
-import companyLogo2 from '../assets/company-logo-2.svg';
-import companyLogo3 from '../assets/company-logo-3.svg';
 
 const ProductScreenContainer = styled.div`
   width: 100%;
   min-height: 100vh;
-  background: #FFFFFF;
   position: relative;
   overflow: hidden;
 `;
@@ -20,8 +15,10 @@ const BackgroundNoise = styled.div`
   left: 0;
   width: 100%;
   height: 100%;
-  background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><filter id="noise"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="4" stitchTiles="stitch"/></filter><rect width="100%" height="100%" filter="url(%23noise)" opacity="0.1"/></svg>');
-  backdrop-filter: blur(64px);
+  background-image: url('../assets/background.jpeg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
   z-index: 1;
 `;
 
@@ -31,9 +28,17 @@ const Header = styled.header`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 30px 80px;
+  padding: 16px 20px;
   background: rgba(255, 255, 255, 0.9);
   backdrop-filter: blur(10px);
+
+  @media (min-width: 768px) {
+    padding: 30px 40px;
+  }
+
+  @media (min-width: 1024px) {
+    padding: 30px 80px;
+  }
 `;
 
 const Logo = styled.div`
@@ -89,62 +94,25 @@ const LogoText = styled.h1`
   margin: 0;
 `;
 
-const Navigation = styled.nav`
-  display: flex;
-  align-items: center;
-  gap: 74px;
-`;
-
-const NavItems = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 33px;
-`;
-
-const NavItem = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  cursor: pointer;
-  font-family: 'Plus Jakarta Sans', sans-serif;
-  font-weight: 600;
-  font-size: 14px;
-  line-height: 1.26;
-  color: #020407;
-`;
-
-const NavItemText = styled.span``;
-
-const ChevronIcon = styled.img`
-  width: 20px;
-  height: 20px;
-`;
-
-const ContactButton = styled.button`
-  width: 134px;
-  height: 45px;
-  border: 1px solid #EA5F38;
-  border-radius: 1000px;
-  background: transparent;
-  color: #EA5F38;
-  font-family: 'HK Grotesk', sans-serif;
-  font-weight: 600;
-  font-size: 16px;
-  line-height: 1.2;
-  cursor: pointer;
-  transition: all 0.3s ease;
-
-  &:hover {
-    background: #EA5F38;
-    color: white;
-  }
-`;
-
 const MainContent = styled.main`
   position: relative;
   z-index: 5;
-  padding: 80px;
+  padding: 32px 20px;
   min-height: calc(100vh - 120px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto;
+  max-width: 100%;
+
+  @media (min-width: 768px) {
+    padding: 60px 40px;
+  }
+
+  @media (min-width: 1024px) {
+    padding: 80px;
+  }
 `;
 
 const PageHeader = styled.div`
@@ -155,10 +123,18 @@ const PageHeader = styled.div`
 const PageTitle = styled.h2`
   font-family: 'Apple SD Gothic Neo', sans-serif;
   font-weight: 600;
-  font-size: 36px;
+  font-size: 24px;
   line-height: 1.2;
   color: #000000;
   margin: 0;
+
+  @media (min-width: 768px) {
+    font-size: 32px;
+  }
+
+  @media (min-width: 1024px) {
+    font-size: 36px;
+  }
 `;
 
 const TabContainer = styled.div`
@@ -173,25 +149,30 @@ const Tab = styled.div`
   background: ${props => props.isActive ? '#FAFAFA' : 'transparent'};
   border: ${props => props.isActive ? '1px solid #ECEDF0' : 'none'};
   border-radius: 8px;
-  cursor: pointer;
+  cursor: default;
   font-family: 'Roboto', sans-serif;
   font-weight: ${props => props.isActive ? '500' : '400'};
   font-size: 16px;
   line-height: 1.5;
-  color: ${props => props.isActive ? '#222222' : '#6A6A6A'};
+  color: ${props => props.isActive ? '#000000' : '#6A6A6A'};
   transition: all 0.3s ease;
-
-  &:hover {
-    background: #FAFAFA;
-  }
 `;
 
 const FilterContainer = styled.div`
-  max-width: 850px;
+  max-width: 100%;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 30px;
+  gap: 20px;
+
+  @media (min-width: 768px) {
+    max-width: 700px;
+    gap: 30px;
+  }
+
+  @media (min-width: 1024px) {
+    max-width: 850px;
+  }
 `;
 
 const FilterBlock = styled.div`
@@ -235,67 +216,40 @@ const ResetButton = styled.button`
   }
 `;
 
-const ProductCategorySelector = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 5px;
+const CategorySelect = styled.select`
+  width: 100%;
   height: 48px;
   background: #FFFFFF;
   border: 1px solid #ECEDF0;
   border-radius: 12px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-
-  &:hover {
-    background: #FAFAFA;
-  }
-`;
-
-const CategoryText = styled.span`
-  font-family: 'Hiragino Sans', sans-serif;
-  font-weight: 600;
-  font-size: 12px;
-  line-height: 1.5;
-  color: #555E67;
-  padding: 0 8px;
-`;
-
-const CalendarIcon = styled.div`
-  width: 37px;
-  height: 37px;
-  background: #EFEFEF;
-  border-radius: 7px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-`;
-
-const CalendarVector = styled.div`
-  width: 8px;
-  height: 4px;
-  background: #555E67;
-  border-radius: 2px;
-`;
-
-const CategoryDropdown = styled.div`
-  margin-top: 8px;
-  background: #FFFFFF;
-  border: 1px solid #ECEDF0;
-  border-radius: 12px;
-  overflow: hidden;
-`;
-
-const CategoryOption = styled.div`
-  padding: 12px 16px;
+  padding: 0 16px;
   font-family: 'Hiragino Sans', sans-serif;
   font-size: 14px;
-  color: #222222;
+  color: #555E67;
   cursor: pointer;
-  transition: background 0.2s ease;
+  transition: all 0.3s ease;
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23555E67' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6,9 12,15 18,9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 16px center;
+  background-size: 16px;
 
   &:hover {
-    background: #FAFAFA;
+    background-color: #FAFAFA;
+    border-color: #D1D5DB;
+  }
+
+  &:focus {
+    outline: none;
+    border-color: #99EA48;
+    box-shadow: 0 0 0 3px rgba(153, 234, 72, 0.1);
+  }
+
+  option {
+    padding: 12px 16px;
+    font-family: 'Hiragino Sans', sans-serif;
+    font-size: 14px;
+    color: #222222;
   }
 `;
 
@@ -374,40 +328,14 @@ const ActionButton = styled.button`
   }
 `;
 
-const Footer = styled.footer`
-  position: relative;
-  z-index: 5;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 64px;
-  padding: 40px 80px;
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(10px);
-`;
-
-const CompanyLogos = styled.div`
-  display: flex;
-  gap: 27.93px;
-  align-items: center;
-`;
-
-const CompanyLogo = styled.div`
-  width: 108.3px;
-  height: 33.32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-`;
-
 const ProductScreen = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('Product');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [marketingA, setMarketingA] = useState('');
   const [marketingB, setMarketingB] = useState('');
-  const [isCategoryOpen, setIsCategoryOpen] = useState(false);
-  const categories = ['음식', '여행', '뷰티', '게임', '패션', '스포츠', '교육'];
+
+  const categories = ['식음료/요리', '여행/숙박/항공', '뷰티/화장품', '게임', '패션/잡화', '스포츠/레저', '부동산/재테크', '정치/사회'];
 
   const handleLogoClick = () => {
     navigate('/');
@@ -421,13 +349,8 @@ const ProductScreen = () => {
     }
   };
 
-  const handleCategorySelect = () => {
-    setIsCategoryOpen(prev => !prev);
-  };
-
-  const handleChooseCategory = (cat) => {
-    setSelectedCategory(cat);
-    setIsCategoryOpen(false);
+  const handleCategoryChange = (e) => {
+    setSelectedCategory(e.target.value);
   };
 
   const handleMarketingAChange = (e) => {
@@ -503,60 +426,26 @@ const ProductScreen = () => {
             <LogoSquare2 />
             <LogoSquare3 />
           </LogoIcon>
-          <LogoText>로고</LogoText>
+          <LogoText>Clicklit!</LogoText>
         </Logo>
-        
-        <Navigation>
-          <NavItems>
-            <NavItem>
-              <NavItemText>Service</NavItemText>
-              <ChevronIcon src={chevronDown} alt="dropdown" />
-            </NavItem>
-            <NavItem>
-              <NavItemText>Agency</NavItemText>
-              <ChevronIcon src={chevronDown} alt="dropdown" />
-            </NavItem>
-            <NavItem>
-              <NavItemText>Case study</NavItemText>
-              <ChevronIcon src={chevronDown} alt="dropdown" />
-            </NavItem>
-            <NavItem>
-              <NavItemText>Resources</NavItemText>
-              <ChevronIcon src={chevronDown} alt="dropdown" />
-            </NavItem>
-          </NavItems>
-          <ContactButton>Contact Us</ContactButton>
-        </Navigation>
       </Header>
 
       <MainContent>
         <PageHeader>
-          <PageTitle>마케팅하고자 하는 제품의 정보/ 마케팅 문구를 입력해주세요</PageTitle>
+          <PageTitle>마케팅하고자 하는 제품의 마케팅 문구를 입력해주세요</PageTitle>
         </PageHeader>
 
         <TabContainer>
-          <Tab 
-            isActive={activeTab === 'Target'} 
-            onClick={() => handleTabClick('Target')}
-          >
+          <Tab isActive={false}>
             Target
           </Tab>
-          <Tab 
-            isActive={activeTab === 'Product'} 
-            onClick={() => handleTabClick('Product')}
-          >
+          <Tab isActive={true}>
             Product
           </Tab>
-          <Tab 
-            isActive={activeTab === 'Prediction'} 
-            onClick={() => handleTabClick('Prediction')}
-          >
+          <Tab isActive={false}>
             Prediction
           </Tab>
-          <Tab 
-            isActive={activeTab === 'Generate Images'} 
-            onClick={() => handleTabClick('Generate Images')}
-          >
+          <Tab isActive={false}>
             Generate Images
           </Tab>
         </TabContainer>
@@ -567,21 +456,17 @@ const ProductScreen = () => {
               <FilterTitle>제품 카테고리</FilterTitle>
               <ResetButton onClick={() => handleReset('category')}>초기화</ResetButton>
             </FilterHeader>
-            <ProductCategorySelector onClick={handleCategorySelect}>
-              <CategoryText>{selectedCategory || '제품 카테고리를 선택해주세요'}</CategoryText>
-              <CalendarIcon>
-                <CalendarVector />
-              </CalendarIcon>
-            </ProductCategorySelector>
-            {isCategoryOpen && (
-              <CategoryDropdown>
-                {categories.map((cat) => (
-                  <CategoryOption key={cat} onClick={() => handleChooseCategory(cat)}>
-                    {cat}
-                  </CategoryOption>
-                ))}
-              </CategoryDropdown>
-            )}
+            <CategorySelect 
+              value={selectedCategory} 
+              onChange={handleCategoryChange}
+            >
+              <option value="" disabled>제품 카테고리를 선택해주세요</option>
+              {categories.map((cat) => (
+                <option key={cat} value={cat}>
+                  {cat}
+                </option>
+              ))}
+            </CategorySelect>
             <Divider />
           </FilterBlock>
 
@@ -619,19 +504,7 @@ const ProductScreen = () => {
         </FilterContainer>
       </MainContent>
 
-      <Footer>
-        <CompanyLogos>
-          <CompanyLogo>
-            <img src={companyLogo1} alt="Company 1" style={{ width: '100%', height: 'auto' }} />
-          </CompanyLogo>
-          <CompanyLogo>
-            <img src={companyLogo2} alt="Company 2" style={{ width: '100%', height: 'auto' }} />
-          </CompanyLogo>
-          <CompanyLogo>
-            <img src={companyLogo3} alt="Company 3" style={{ width: '100%', height: 'auto' }} />
-          </CompanyLogo>
-        </CompanyLogos>
-      </Footer>
+
     </ProductScreenContainer>
   );
 };

@@ -98,18 +98,20 @@ class Persona:
     name: str
     weight: float
     categories: list[str]
-    ages: list[str]       # "10s","20s","30s","40s","50s+"
-    genders: list[str]    # "male","female","other"
+    ages: list[str]       # "10s","20s","30s","40s","50s"
+    genders: list[str]    # "male","female"
     interests: list[str]
     notes: str = ""
 
 PERSONAS: list[Persona] = [
-    Persona("p1","운동 매니아",1.2,["sportswear","fitness","health"],["20s","30s"],["male"],["헬스","러닝","다이어트"]),
-    Persona("p2","가성비 중시 직장인",1.0,["electronics","home","beauty","fashion"],["20s","30s"],["male","female"],["할인","혜택","퀵배송"]),
-    Persona("p3","감성 소비자",0.9,["beauty","fashion","lifestyle"],["20s"],["female"],["인스타","감성","브랜딩"]),
-    Persona("p4","실용 주부",1.1,["home","food","kids"],["30s","40s"],["female"],["가성비","편의성","안전"]),
-    Persona("p5","얼리어답터",1.0,["electronics","gadgets"],["20s","30s"],["male"],["신제품","스펙","리뷰"]),
-    Persona("p6","등산 마니아",1.0,["outdoor","sportswear"],["40s","50s+"],["male","female"],["등산","트레킹","방수"]),
+    Persona("p1","뷰티/화장품",1.2,["beauty","cosmetics","skincare"],["20s"],["female"],["생활","노하우","쇼핑"]),
+    Persona("p2","게임",1.0,["gaming","electronics","entertainment"],["20s"],["male"],["취미","여가","여행"]),
+    Persona("p3","패션/잡화",0.9,["fashion","accessories","lifestyle"],["30s"],["female"],["생활","노하우","쇼핑"]),
+    Persona("p4","부동산/재테크",1.1,["real_estate","investment","finance"],["30s"],["male"],["지식", "동향"]),
+    Persona("p5","여행/숙박/항공",1.0,["travel","accommodation","aviation"],["40s"],["female"],["취미","여가","여행"]),
+    Persona("p6","스포츠/레저",1.0,["sports","outdoor","leisure"],["40s"],["male"],["취미","여가","여행"]),
+    Persona("p7","식음료/요리",1.0,["food","beverage","cooking"],["50s"],["female"],["생활","노하우","쇼핑"]),
+    Persona("p8","정치/사회",1.0,["politics","social_issues","news"],["50s"],["male"],["지식", "동향"]),
 ]
 
 # === 임베딩 & 유사도 ===
@@ -157,8 +159,8 @@ def _build_persona_scoring_prompt(pr: "PredictRequest", personas: list[Persona])
             f"interests:{'/'.join(p.interests)}, categories:{'/'.join(p.categories)}"
         )
     return f"""
-당신은 페르소나 마케팅 분석가입니다.
-각 페르소나 입장에서 아래 두 카피(A/B)에 대한 "클릭 의향 점수"(1~5, 정수)와 근거 키워드를 JSON으로만 반환하세요.
+너는 30년 경력의 페르소나 마케팅 분석가야.
+각 페르소나 입장에서 아래 두 카피(A/B)에 대한 심도 깊은 분석을 JSON 형식으로 반환하되, 각 분석 내용을 300자 이상의 상세한 보고서 형태로 작성해주세요.
 
 [입력 타겟]
 - category: {pr.category}
@@ -173,13 +175,25 @@ def _build_persona_scoring_prompt(pr: "PredictRequest", personas: list[Persona])
 [페르소나]
 {chr(10).join(persona_blocks)}
 
-[반환 형식: STRICT JSON]
+[반환 형식: STRICT JSON with detailed analysis]
 {{
   "results": [
-    {{ "persona_id": "p1", "score_a": 1, "score_b": 5, "reasons": ["가성비","긴급성","신뢰"] }}
+    {{
+      "persona_id": "p1",
+      "score_a": 1,
+      "score_b": 5,
+      "detailed_analysis": {{
+        "a_analysis": "A안에 대한 300자 이상의 상세한 분석 내용. 페르소나 특성과의 연관성, 클릭 의향에 미치는 요소들을 구체적으로 설명해요.",
+        "b_analysis": "B안에 대한 300자 이상의 상세한 분석 내용. 페르소나 특성과의 연관성, 클릭 의향에 미치는 요소들을 구체적으로 설명해요.",
+        "overall_evaluation": "전체적인 마케팅 효과와 개선 방향, 페르소나별 맞춤 전략에 대한 300자 이상의 종합 평가를 제공해요."
+      }},
+      "reasons": ["핵심요인1", "핵심요인2", "핵심요인3"]
+    }}
   ],
-  "winner_reason_keywords": ["핵심1","핵심2","핵심3"]
+  "winner_reason_keywords": ["핵심1", "핵심2", "핵심3"]
 }}
+
+각 페르소나별로 detailed_analysis의 각 항목을 300자 이상의 심도 깊은 내용으로 작성해주세요. 모든 문장은 반드시 '-요'로 끝나야 해요.
 """.strip()
 
 def llm_persona_scores(pr: "PredictRequest", personas: list[Persona]):
@@ -189,7 +203,7 @@ def llm_persona_scores(pr: "PredictRequest", personas: list[Persona]):
         model=LLM_MODEL,
         temperature=LLM_TEMP,
         messages=[
-            {"role":"system","content":"You are a helpful marketing analyst. Return STRICT JSON only."},
+            {"role":"system","content":"You are a 30-year experienced marketing analyst specializing in persona-based analysis. Provide detailed, insightful analysis with at least 300 characters per analysis section. Return STRICT JSON only."},
             {"role":"user","content": prompt}
         ],
     )
@@ -240,18 +254,32 @@ CTA_LIST  = ["지금 바로 확인하세요","지금 시작해보세요","오늘
 
 def _build_third_copy_prompt(pr: "PredictRequest", winner_keywords: list[str], winner: str) -> str:
     return f"""
-아래 조건을 만족하는 한국어 마케팅 헤드라인을 1개 생성하세요. STRICT JSON으로만 반환합니다.
+아래 조건을 만족하는 한국어 마케팅 헤드라인을 1개 생성하되, 생성 과정과 근거를 300자 이상의 상세한 분석과 함께 제공해주세요. STRICT JSON으로만 반환합니다. 모든 문장은 반드시 '-요'로 끝나야 해요.
+
 [목표]
 - 승자 카피({winner})의 강점을 반영해 더 높은 CTR이 예상되는 문구 1개
+
 [승자 요인 키워드]
 {", ".join(winner_keywords)}
+
 [제약]
 - 최대 28자
 - CTA 반드시 1개 포함(예: {", ".join(CTA_LIST)})
 - 금칙어 포함 금지: {", ".join(FORBIDDEN)}
 - 과장/허위 불가, 명확하고 간결하게
-[반환]
-{{ "text": "최종 문구" }}
+
+[반환 형식]
+{{
+  "text": "최종 문구",
+  "detailed_analysis": {{
+    "creation_process": "300자 이상의 문구 생성 과정과 전략적 사고 과정을 상세히 설명해요.",
+    "winner_integration": "300자 이상의 승자 카피 강점 통합 방법과 효과 분석을 제공해요.",
+    "ctr_optimization": "300자 이상의 CTR 향상을 위한 핵심 요소와 개선 방향 분석을 제시해요.",
+    "target_audience_consideration": "300자 이상의 타겟 오디언스 특성을 반영한 문구 설계 근거를 설명해요."
+  }}
+}}
+
+각 분석 항목을 300자 이상의 심도 깊은 내용으로 작성해주세요. 모든 문장은 반드시 '-요'로 끝나야 해요.
 """.strip()
 
 def _violates_rules(text: str) -> bool:
@@ -267,7 +295,7 @@ def generate_third_copy(pr: "PredictRequest", winner_keywords: list[str], winner
         model=LLM_MODEL,
         temperature=LLM_TEMP,
         messages=[
-            {"role":"system","content":"Return STRICT JSON only."},
+            {"role":"system","content":"You are a 30-year experienced marketing copywriter and analyst. Provide detailed, insightful analysis with at least 300 characters per analysis section. Return STRICT JSON only."},
             {"role":"user","content": _build_third_copy_prompt(pr, winner_keywords, winner)}
         ],
     )
@@ -417,15 +445,14 @@ if _ENV_PATH.exists():
 
 app = FastAPI(title="ab-test-backend")
 
-# CORS for frontend (local and production)
+# CORS for frontend (local development)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:3000",
-    ],
-    allow_origin_regex=r"https://.*\.netlify\.app$",
-        "https://your-netlify-app.netlify.app",  # Netlify URL로 변경
-        "https://*.netlify.app"  # 모든 Netlify 서브도메인 허용
+        "http://localhost:3001",
+        "http://localhost:5173",
+        "http://localhost:8080",
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -509,7 +536,7 @@ def _build_prompt(payload: PredictRequest) -> str:
     ])).strip(", ")
 
     prompt = f"""
-한국어(해요/예요체)로만 답변해요. '합니다/십시오'체는 절대 사용하지 마세요. 두 광고 문구 A/B의 CTR을 예측하고 이유를 설명해요. 시장지식, 명확성, 관련성, 구체성, 후킹(수치, 긴박감, 사회적 증거)을 근거로 평가해요.
+한국어로 답변하되, 모든 문장을 '-요'로 끝나게 작성해요. 두 광고 문구 A/B의 CTR을 예측하고 각각에 대해 300자 이상의 심도 깊은 분석을 제공해요. 시장지식, 명확성, 관련성, 구체성, 후킹(수치, 긴박감, 사회적 증거)을 근거로 평가해요.
 
 타겟: {audience or 'N/A'}
 제품/카테고리: {payload.category or 'N/A'}
@@ -520,8 +547,15 @@ def _build_prompt(payload: PredictRequest) -> str:
 반드시 다음 키를 가진 JSON만 출력해요: ctr_a, ctr_b, analysis_a, analysis_b, ai_suggestion.
 규칙:
 - ctr_a/ctr_b는 0~1 사이 실수예요 (예: 0.123은 12.3%).
-- analysis_a/analysis_b는 문장형 한국어 텍스트예요. JSON/코드/마크다운 금지.
+- analysis_a/analysis_b는 각각 300자 이상의 심도 깊은 분석이 포함된 문장형 한국어 텍스트예요. JSON/코드/마크다운 금지.
 - ai_suggestion은 이 타겟에 맞춘 한 줄 문구예요.
+- 모든 문장은 반드시 '-요'로 끝나야 해요.
+
+각 분석은 다음 요소들을 포함하여 300자 이상으로 작성해주세요:
+- 마케팅 문구의 강점과 약점 분석
+- 타겟 오디언스와의 연관성 평가
+- CTR 예측에 영향을 미치는 핵심 요소 분석
+- 개선 방향과 최적화 전략 제시
 """.strip()
     return prompt
 
@@ -538,7 +572,7 @@ def _call_llm(prompt: str) -> PredictResponse:
         resp = client.chat.completions.create(
             model=model_name,
             messages=[
-                {"role": "system", "content": "You are a helpful marketing analyst. Return STRICT JSON only."},
+                {"role": "system", "content": "You are a 30-year experienced marketing analyst specializing in CTR prediction and copy analysis. Provide detailed, insightful analysis with at least 300 characters per analysis section. Return STRICT JSON only."},
                 {"role": "user", "content": prompt},
             ],
             temperature=temperature,
@@ -579,33 +613,7 @@ def _call_llm(prompt: str) -> PredictResponse:
                     s = ". ".join(map(str, obj))
             except Exception:
                 pass
-        # Normalize to 해요/예요체
-        lines = [ln.strip() for ln in s.split("\n") if ln.strip()]
-        fixed = []
-        for ln in lines:
-            repl = (
-                ln.replace("합니다요", "해요")
-                  .replace("합니다.", "해요.")
-                  .replace("합니다!", "해요!")
-                  .replace("합니다?", "해요?")
-                  .replace("합니다", "해요")
-                  .replace("십시오", "세요")
-                  .replace("하십시오", "하세요")
-                  .replace("됩니다", "돼요")
-                  .replace("한다", "해요")
-                  .replace("이다", "예요")
-                  .replace("입니다", "예요")
-            )
-            # 기본 존댓말 보정
-            if repl.endswith(("요", "요.", "요!", "요?", "세요", "세요.", "세요!", "세요?", "예요", "예요.", "예요!", "예요?")):
-                fixed.append(repl)
-            else:
-                punct = ""
-                if repl.endswith((".", "!", "?")):
-                    punct = repl[-1]
-                    repl = repl[:-1]
-                fixed.append(repl + "요" + punct)
-        return "\n".join(fixed)
+        return s
 
     try:
         return PredictResponse(
@@ -665,16 +673,15 @@ def predict(req: PredictRequest):
         ai_top
     )
 
-    # 6) 분석문구(간단 요약)
-    analysis_a = f"이유 키워드 상위: {', '.join(reasons_a) or '없음'}"
-    analysis_b = f"이유 키워드 상위: {', '.join(reasons_b) or '없음'}"
-
+    # 6) LLM으로 상세한 분석문구 생성
+    detailed_analysis = _call_llm(_build_prompt(req))
+    
     # 7) 저장(JSONL) 및 응답
     result = PredictResponse(
         ctr_a=float(ctr_a),
         ctr_b=float(ctr_b),
-        analysis_a=analysis_a,
-        analysis_b=analysis_b,
+        analysis_a=detailed_analysis.analysis_a,
+        analysis_b=detailed_analysis.analysis_b,
         ai_suggestion=third,
         ai_top_ctr_choice=ai_top,
         log_id=str(uuid.uuid4()),
@@ -701,7 +708,6 @@ def predict(req: PredictRequest):
 # 이미지 생성
 # -----------------------------
 class ImageGenerationRequest(BaseModel):
-    marketing_text: str
     product_category: Optional[str] = None
     target_audience: Optional[str] = None
 
@@ -714,18 +720,18 @@ def generate_image(req: ImageGenerationRequest):
     try:
         audience_hint = f" targeting {req.target_audience}" if req.target_audience else ""
         image_prompt = f"""
-Create a modern, professional advertisement visual for a {req.product_category or 'product'} campaign{audience_hint}. 
-The design should feature the headline text: "{req.marketing_text}"
+Create a modern, professional advertisement visual mood image for a {req.product_category or 'product'} campaign{audience_hint}. 
 
 Style requirements:
-- Clean, modern layout with high legibility
-- Professional typography and composition
+- Clean, modern layout without any text
+- Professional composition and visual appeal
 - Suitable for digital advertising (social media, display ads)
 - Brand-friendly and visually appealing
-- Korean text should be clearly readable
 - Use a color palette that works well with the product category
+- Focus on visual mood and atmosphere rather than text content
+- Create an image that conveys the feeling and style of the product category
 
-The image should be suitable for marketing materials and maintain visual hierarchy with the headline as the focal point.
+The image should be suitable for marketing materials and maintain strong visual impact without relying on text elements.
 """.strip()
 
         client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
@@ -733,7 +739,7 @@ The image should be suitable for marketing materials and maintain visual hierarc
             model="dall-e-3",
             prompt=image_prompt,
             size="1024x1024",
-            quality="standard",
+            quality="hd",
             n=1,
         )
         
