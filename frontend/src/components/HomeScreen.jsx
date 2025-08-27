@@ -9,19 +9,7 @@ const HomeScreenContainer = styled.div`
   min-height: 100vh;
   position: relative;
   overflow: hidden;
-`;
-
-const BackgroundNoise = styled.div`
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-image: url('../assets/background.jpeg');
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-  z-index: 1;
+  background: #FFFFFF;
 `;
 
 const Header = styled.header`
@@ -94,8 +82,6 @@ const LogoText = styled.h1`
   color: #020407;
   margin: 0;
 `;
-
-
 
 const MainContent = styled.main`
   position: relative;
@@ -249,7 +235,6 @@ const RightSection = styled.div`
   }
 `;
 
-// Top-Left: 라임 그린 트렌드 라인이 있는 검은 원형 아이콘과 연한 회색 1/4 원
 const TopLeftCard = styled.div`
   position: absolute;
   top: 20px;
@@ -428,7 +413,6 @@ const HomeScreen = () => {
 
   return (
     <HomeScreenContainer>
-      <BackgroundNoise />
       
       <Header>
         <Logo>
@@ -437,11 +421,12 @@ const HomeScreen = () => {
             <LogoSquare2 />
             <LogoSquare3 />
           </LogoIcon>
-          <LogoText>Clicklit!</LogoText>
+          <LogoText>Clicklit</LogoText>
         </Logo>
       </Header>
 
       <MainContent>
+
         <LeftSection>
           <HeroTitle>
             A/B 마케팅 문구 실험, 클릭률 예측, <br />
@@ -476,9 +461,9 @@ const HomeScreen = () => {
           <TopRightCard>
             <TopRightNumber>3</TopRightNumber>
             <TopRightText>
-              <TopRightLine>세 학교(한국외대, 건국대, 숭실대)</TopRightLine>
-              <TopRightLine>학생들이 2주간</TopRightLine>
-              <TopRightLine>제작한 AI 프로젝트입니다.</TopRightLine>
+              <TopRightLine>3개 대학의 학생들이 진행한</TopRightLine>
+              <TopRightLine>AI 프로젝트에 참여하고</TopRightLine>
+              <TopRightLine>인사이트를 얻으세요</TopRightLine>
             </TopRightText>
             <ProgressBar>
               <ProgressFill />
@@ -488,17 +473,18 @@ const HomeScreen = () => {
             <BottomContent>
               <BottomIcon />
               <BottomText>
-                <BottomLine>다양한 A/B 테스트를</BottomLine>
+                <BottomLine>더 다양한 A/B 테스트를</BottomLine>
                 <BottomLine>진행해보세요</BottomLine>
               </BottomText>
             </BottomContent>
             <BottomChartBars>
-              <BottomChartBar height={95} />
-              <BottomChartBar height={136} />
-              <BottomChartBar height={166} />
+              <BottomChartBar height={90} />
+              <BottomChartBar height={130} />
+              <BottomChartBar height={168} />
             </BottomChartBars>
           </BottomCard>
         </RightSection>
+
       </MainContent>
 
     </HomeScreenContainer>

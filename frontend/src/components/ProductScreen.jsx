@@ -7,19 +7,7 @@ const ProductScreenContainer = styled.div`
   min-height: 100vh;
   position: relative;
   overflow: hidden;
-`;
-
-const BackgroundNoise = styled.div`
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-image: url('../assets/background.jpeg');
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-  z-index: 1;
+  background: #FFFFFF;
 `;
 
 const Header = styled.header`
@@ -146,15 +134,15 @@ const TabContainer = styled.div`
 
 const Tab = styled.div`
   padding: 10px 16px;
-  background: ${props => props.isActive ? '#FAFAFA' : 'transparent'};
-  border: ${props => props.isActive ? '1px solid #ECEDF0' : 'none'};
+  background: transparent;
+  border: none;
   border-radius: 8px;
   cursor: default;
   font-family: 'Roboto', sans-serif;
-  font-weight: ${props => props.isActive ? '500' : '400'};
+  font-weight: 400;
   font-size: 16px;
   line-height: 1.5;
-  color: ${props => props.isActive ? '#000000' : '#6A6A6A'};
+  color: #6A6A6A;
   transition: all 0.3s ease;
 `;
 
@@ -192,7 +180,7 @@ const FilterHeader = styled.div`
 
 const FilterTitle = styled.h3`
   font-family: 'Hiragino Sans', sans-serif;
-  font-weight: 600;
+  font-weight: 700;
   font-size: 14px;
   line-height: 1.5;
   color: #31373D;
@@ -297,6 +285,20 @@ const Divider = styled.div`
   width: 100%;
 `;
 
+const LoadingSpinner = styled.div`
+  width: 20px;
+  height: 20px;
+  border: 2px solid #f3f3f3;
+  border-top: 2px solid #010205;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+`;
+
 const ActionButton = styled.button`
   display: flex;
   align-items: center;
@@ -330,23 +332,15 @@ const ActionButton = styled.button`
 
 const ProductScreen = () => {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState('Product');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [marketingA, setMarketingA] = useState('');
   const [marketingB, setMarketingB] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  const categories = ['식음료/요리', '여행/숙박/항공', '뷰티/화장품', '게임', '패션/잡화', '스포츠/레저', '부동산/재테크', '정치/사회'];
+  const categories = ['뷰티/화장품', '게임', '패션/잡화', '부동산/재테크', '여행/숙박/항공', '스포츠/레저', '식음료/요리', '정치/사회'];
 
   const handleLogoClick = () => {
     navigate('/');
-  };
-
-  const handleTabClick = (tab) => {
-    if (tab === 'Target') {
-      navigate('/target');
-    } else {
-      setActiveTab(tab);
-    }
   };
 
   const handleCategoryChange = (e) => {
@@ -376,6 +370,7 @@ const ProductScreen = () => {
   };
 
   const handleViewResults = async () => {
+    setIsLoading(true);
     try {
       const target = JSON.parse(localStorage.getItem('target') || '{}');
       const payload = {
@@ -409,7 +404,7 @@ const ProductScreen = () => {
     } catch (e) {
       alert((e && e.message) ? e.message : '결과 생성 중 오류가 발생했습니다.');
     } finally {
-      // no-op
+      setIsLoading(false);
     }
   };
 
@@ -417,7 +412,6 @@ const ProductScreen = () => {
 
   return (
     <ProductScreenContainer>
-      <BackgroundNoise />
       
       <Header>
         <Logo onClick={handleLogoClick}>
@@ -426,26 +420,26 @@ const ProductScreen = () => {
             <LogoSquare2 />
             <LogoSquare3 />
           </LogoIcon>
-          <LogoText>Clicklit!</LogoText>
+          <LogoText>Clicklit</LogoText>
         </Logo>
       </Header>
 
       <MainContent>
         <PageHeader>
-          <PageTitle>마케팅하고자 하는 제품의 마케팅 문구를 입력해주세요</PageTitle>
+          <PageTitle>마케팅하고자 하는 제품의 카테고리/마케팅 문구를 입력해주세요</PageTitle>
         </PageHeader>
 
         <TabContainer>
-          <Tab isActive={false}>
+          <Tab>
             Target
           </Tab>
-          <Tab isActive={true}>
+          <Tab style={{ fontWeight: '700', color: '#000000' }}>
             Product
           </Tab>
-          <Tab isActive={false}>
+          <Tab>
             Prediction
           </Tab>
-          <Tab isActive={false}>
+          <Tab>
             Generate Images
           </Tab>
         </TabContainer>
@@ -498,12 +492,18 @@ const ProductScreen = () => {
             <Divider />
           </FilterBlock>
 
-          <ActionButton onClick={handleViewResults} disabled={!isProductValid}>
-            결과 보러가기
+          <ActionButton onClick={handleViewResults} disabled={!isProductValid || isLoading}>
+            {isLoading ? (
+              <>
+                <LoadingSpinner />
+                평가중...
+              </>
+            ) : (
+              '결과 보러가기'
+            )}
           </ActionButton>
         </FilterContainer>
       </MainContent>
-
 
     </ProductScreenContainer>
   );

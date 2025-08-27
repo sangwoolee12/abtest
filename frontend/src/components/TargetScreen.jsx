@@ -7,19 +7,7 @@ const TargetScreenContainer = styled.div`
   min-height: 100vh;
   position: relative;
   overflow: hidden;
-`;
-
-const BackgroundNoise = styled.div`
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-image: url('../assets/background.jpeg');
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-  z-index: 1;
+  background: #FFFFFF;
 `;
 
 const Header = styled.header`
@@ -146,15 +134,15 @@ const TabContainer = styled.div`
 
 const Tab = styled.div`
   padding: 10px 16px;
-  background: ${props => props.isActive ? '#FAFAFA' : 'transparent'};
-  border: ${props => props.isActive ? '1px solid #ECEDF0' : 'none'};
+  background: transparent;
+  border: none;
   border-radius: 8px;
   cursor: default;
   font-family: 'Roboto', sans-serif;
-  font-weight: ${props => props.isActive ? '500' : '400'};
+  font-weight: 400;
   font-size: 16px;
   line-height: 1.5;
-  color: ${props => props.isActive ? '#000000' : '#6A6A6A'};
+  color: #6A6A6A;
   transition: all 0.3s ease;
 `;
 
@@ -164,6 +152,7 @@ const FilterContainer = styled.div`
   display: flex;
   flex-direction: column;
   gap: 20px;
+  width: 612px;
 
   @media (min-width: 768px) {
     max-width: 700px;
@@ -179,7 +168,7 @@ const FilterBlock = styled.div`
   display: flex;
   flex-direction: column;
   gap: 16px;
-  width: 612px;
+  width: 100%;
   margin: 0 auto;
 `;
 
@@ -192,7 +181,7 @@ const FilterHeader = styled.div`
 
 const FilterTitle = styled.h3`
   font-family: 'Hiragino Sans', sans-serif;
-  font-weight: 600;
+  font-weight: 700;
   font-size: 14px;
   line-height: 1.5;
   color: #31373D;
@@ -218,28 +207,52 @@ const ResetButton = styled.button`
 
 const FilterOptions = styled.div`
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 10px;
+  width: 100%;
+  overflow-x: auto;
 `;
 
 const FilterOption = styled.div`
-  padding: 0 5px;
+  padding: 0 16px;
   height: 48px;
   background: ${props => props.isSelected ? 'rgba(153, 234, 72, 0.9)' : '#FFFFFF'};
-  border: 1px solid #ECEDF0;
+  border: 2px solid ${props => props.isSelected ? '#99EA48' : '#ECEDF0'};
   border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   transition: all 0.3s ease;
+  flex-shrink: 0;
+  width: calc((100% - 60px) / 7);
 
   &:hover {
     background: ${props => props.isSelected ? 'rgba(153, 234, 72, 0.9)' : '#FAFAFA'};
+    border-color: ${props => props.isSelected ? '#8DD43A' : '#D1D5DB'};
   }
 `;
 
-// 페르소나 관련 스타일드 컴포넌트들
+const GenderFilterOption = styled.div`
+  padding: 0 16px;
+  height: 48px;
+  background: ${props => props.isSelected ? 'rgba(153, 234, 72, 0.9)' : '#FFFFFF'};
+  border: 2px solid ${props => props.isSelected ? '#99EA48' : '#ECEDF0'};
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  flex: 1;
+  min-width: 0;
+
+  &:hover {
+    background: ${props => props.isSelected ? 'rgba(153, 234, 72, 0.9)' : '#FAFAFA'};
+    border-color: ${props => props.isSelected ? '#8DD43A' : '#D1D5DB'};
+  }
+`;
+
 const PersonaSection = styled.div`
   margin-bottom: 10px;
 `;
@@ -256,12 +269,12 @@ const ToggleButton = styled.button`
   padding: 0 5px;
   height: 48px;
   background: ${props => props.isActive ? 'rgba(153, 234, 72, 0.9)' : '#FFFFFF'};
-  border: 1px solid #ECEDF0;
+  border: 2px solid ${props => props.isActive ? '#99EA48' : '#ECEDF0'};
   border-radius: 12px;
   font-family: 'Hiragino Sans', sans-serif;
   font-weight: 600;
   font-size: 14px;
-  color: ${props => props.isActive ? '#FFFFFF' : '#222222'};
+  color: #222222;
   cursor: pointer;
   transition: all 0.3s ease;
   display: flex;
@@ -272,6 +285,7 @@ const ToggleButton = styled.button`
 
   &:hover {
     background: ${props => props.isActive ? 'rgba(153, 234, 72, 0.9)' : '#FAFAFA'};
+    border-color: ${props => props.isActive ? '#8DD43A' : '#D1D5DB'};
   }
 `;
 
@@ -279,6 +293,7 @@ const PersonaGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 12px;
+  margin-top: 30px;
   margin-bottom: 16px;
 `;
 
@@ -290,13 +305,13 @@ const PersonaButton = styled.button`
   font-family: 'Hiragino Sans', sans-serif;
   font-weight: 600;
   font-size: 14px;
-  color: ${props => props.isSelected ? '#FFFFFF' : '#222222'};
+  color: #222222;
   cursor: pointer;
   transition: all 0.3s ease;
   text-align: left;
 
   &:hover {
-    background: ${props => props.isSelected ? 'rgba(153, 234, 72, 0.8)' : '#FAFAFA'};
+    background: ${props => props.isSelected ? 'rgba(153, 234, 72, 0.9)' : '#FAFAFA'};
     border-color: ${props => props.isSelected ? '#8DD43A' : '#D1D5DB'};
   }
 `;
@@ -308,17 +323,18 @@ const PersonaName = styled.div`
 
 const PersonaDetails = styled.div`
   font-size: 12px;
-  color: ${props => props.isSelected ? 'rgba(255, 255, 255, 0.8)' : '#666666'};
+  color: #666666;
   line-height: 1.4;
 `;
 
 const FilterOptionText = styled.span`
   font-family: 'Hiragino Sans', sans-serif;
   font-weight: 600;
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1.5;
-  color: #555E67;
+  color:rgb(62, 64, 67);
   padding: 0 8px;
+  white-space: nowrap;
 `;
 
 const InterestInput = styled.input`
@@ -378,7 +394,6 @@ const ActionButton = styled.button`
 
 const TargetScreen = () => {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState('Target');
   const [selectedAgeGroups, setSelectedAgeGroups] = useState([]);
   const [selectedGenders, setSelectedGenders] = useState([]);
   const [interestInput, setInterestInput] = useState('');
@@ -456,14 +471,8 @@ const TargetScreen = () => {
     }
   ];
 
-  // 사용자가 자유롭게 관심사를 입력합니다 (쉼표로 구분 가능)
-
   const handleLogoClick = () => {
     navigate('/');
-  };
-
-  const handleTabClick = (tab) => {
-    setActiveTab(tab);
   };
 
   const handleAgeGroupToggle = (age) => {
@@ -538,7 +547,6 @@ const TargetScreen = () => {
       };
       localStorage.setItem('target', JSON.stringify(payload));
     } catch (e) {
-      // no-op
     }
     navigate('/product');
   };
@@ -547,7 +555,6 @@ const TargetScreen = () => {
 
   return (
     <TargetScreenContainer>
-      <BackgroundNoise />
       
       <Header>
         <Logo onClick={handleLogoClick}>
@@ -556,7 +563,7 @@ const TargetScreen = () => {
             <LogoSquare2 />
             <LogoSquare3 />
           </LogoIcon>
-          <LogoText>Clicklit!</LogoText>
+          <LogoText>Clicklit</LogoText>
         </Logo>
       </Header>
 
@@ -566,16 +573,16 @@ const TargetScreen = () => {
         </PageHeader>
 
         <TabContainer>
-          <Tab isActive={true}>
+          <Tab style={{ fontWeight: '700', color: '#000000' }}>
             Target
           </Tab>
-          <Tab isActive={false}>
+          <Tab>
             Product
           </Tab>
-          <Tab isActive={false}>
+          <Tab>
             Prediction
           </Tab>
-          <Tab isActive={false}>
+          <Tab>
             Generate Images
           </Tab>
         </TabContainer>
@@ -623,76 +630,66 @@ const TargetScreen = () => {
             )}
           </PersonaSection>
 
-          <FilterBlock>
-            <FilterHeader>
-              <FilterTitle>타겟 연령대(복수 선택 가능)</FilterTitle>
-              <ResetButton onClick={() => handleReset('age')}>초기화</ResetButton>
-            </FilterHeader>
-            <FilterOptions>
-              {ageGroups.map((age) => (
-                <FilterOption
-                  key={age}
-                  isSelected={selectedAgeGroups.includes(age)}
-                  onClick={() => !selectedPersona && handleAgeGroupToggle(age)}
-                  style={{ 
-                    opacity: selectedPersona ? 0.5 : 1,
-                    cursor: selectedPersona ? 'not-allowed' : 'pointer'
-                  }}
-                >
-                  <FilterOptionText>{age}</FilterOptionText>
-                </FilterOption>
-              ))}
-            </FilterOptions>
-            <Divider />
-          </FilterBlock>
+          {!usePersonas && (
+            <>
+              <FilterBlock>
+                <FilterHeader>
+                  <FilterTitle>타겟 연령대 (복수 선택 가능)</FilterTitle>
+                  <ResetButton onClick={() => handleReset('age')}>초기화</ResetButton>
+                </FilterHeader>
+                <FilterOptions>
+                  {ageGroups.map((age) => (
+                    <FilterOption
+                      key={age}
+                      isSelected={selectedAgeGroups.includes(age)}
+                      onClick={() => handleAgeGroupToggle(age)}
+                    >
+                      <FilterOptionText>{age}</FilterOptionText>
+                    </FilterOption>
+                  ))}
+                </FilterOptions>
+                <Divider />
+              </FilterBlock>
 
-          <FilterBlock>
-            <FilterHeader>
-              <FilterTitle>타겟 성별 (복수 선택 가능)</FilterTitle>
-              <ResetButton onClick={() => handleReset('gender')}>초기화</ResetButton>
-            </FilterHeader>
-            <FilterOptions>
-              {genders.map((gender) => (
-                <FilterOption
-                  key={gender}
-                  isSelected={selectedGenders.includes(gender)}
-                  onClick={() => !selectedPersona && handleGenderToggle(gender)}
-                  style={{ 
-                    opacity: selectedPersona ? 0.5 : 1,
-                    cursor: selectedPersona ? 'not-allowed' : 'pointer'
-                  }}
-                >
-                  <FilterOptionText>{gender}</FilterOptionText>
-                </FilterOption>
-              ))}
-            </FilterOptions>
-            <Divider />
-          </FilterBlock>
+              <FilterBlock>
+                <FilterHeader>
+                  <FilterTitle>타겟 성별 (복수 선택 가능)</FilterTitle>
+                  <ResetButton onClick={() => handleReset('gender')}>초기화</ResetButton>
+                </FilterHeader>
+                <FilterOptions>
+                  {genders.map((gender) => (
+                    <GenderFilterOption
+                      key={gender}
+                      isSelected={selectedGenders.includes(gender)}
+                      onClick={() => handleGenderToggle(gender)}
+                    >
+                      <FilterOptionText>{gender}</FilterOptionText>
+                    </GenderFilterOption>
+                  ))}
+                </FilterOptions>
+                <Divider />
+              </FilterBlock>
 
-          <FilterBlock>
-            <FilterHeader>
-              <FilterTitle>타겟 관심사</FilterTitle>
-              <ResetButton onClick={() => handleReset('interest')}>초기화</ResetButton>
-            </FilterHeader>
-            <InterestInput
-              type="text"
-              placeholder="관심사를 입력하세요 (예: #KBO, #유니폼, #야구)"
-              value={interestInput}
-              onChange={handleInterestInputChange}
-              disabled={!!selectedPersona}
-              style={{ 
-                opacity: selectedPersona ? 0.5 : 1,
-                cursor: selectedPersona ? 'not-allowed' : 'pointer'
-              }}
-            />
-          </FilterBlock>
+              <FilterBlock>
+                <FilterHeader>
+                  <FilterTitle>타겟 관심사</FilterTitle>
+                  <ResetButton onClick={() => handleReset('interest')}>초기화</ResetButton>
+                </FilterHeader>
+                <InterestInput
+                  type="text"
+                  placeholder="예: 야구, KBO, 유니폼"
+                  value={interestInput}
+                  onChange={handleInterestInputChange}
+                />
+              </FilterBlock>
+            </>
+          )}
 
           <ActionButton onClick={handleNextStep} disabled={!isTargetValid}>
             다음 단계
           </ActionButton>
         </FilterContainer>
       </MainContent>
-
 
     </TargetScreenContainer>
   );

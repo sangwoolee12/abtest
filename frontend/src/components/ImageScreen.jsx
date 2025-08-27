@@ -2,29 +2,14 @@ import React, { useState } from 'react';
 import styled from 'styled-components';
 import { useNavigate } from 'react-router-dom';
 
+
 const ImageScreenContainer = styled.div`
   width: 100%;
   min-height: 100vh;
-  position: relative;
-  overflow: hidden;
-`;
-
-const BackgroundNoise = styled.div`
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-image: url('../assets/background.jpeg');
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-  z-index: 1;
+  background: #FFFFFF;
 `;
 
 const Header = styled.header`
-  position: relative;
-  z-index: 10;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -95,8 +80,6 @@ const LogoText = styled.h1`
 `;
 
 const MainContent = styled.main`
-  position: relative;
-  z-index: 5;
   padding: 32px 20px;
   min-height: calc(100vh - 120px);
   display: flex;
@@ -148,20 +131,14 @@ const TabContainer = styled.div`
 
 const Tab = styled.div`
   padding: 10px 16px;
-  background: ${props => props.isActive ? '#FAFAFA' : 'transparent'};
-  border: ${props => props.isActive ? '1px solid #ECEDF0' : 'none'};
+  background: transparent;
+  border: none;
   border-radius: 8px;
-  cursor: pointer;
   font-family: 'Roboto', sans-serif;
-  font-weight: ${props => props.isActive ? '500' : '400'};
+  font-weight: 400;
   font-size: 16px;
   line-height: 1.5;
-  color: ${props => props.isActive ? '#222222' : '#6A6A6A'};
-  transition: all 0.3s ease;
-
-  &:hover {
-    background: #FAFAFA;
-  }
+  color: #6A6A6A;
 `;
 
 const FilterBlock = styled.div`
@@ -216,26 +193,46 @@ const ResetButton = styled.button`
 const StyleSelector = styled.div`
   display: flex;
   align-items: center;
-  justify-content: center;
-  padding: 0 8px;
-  height: 48px;
+  justify-content: flex-start;
+  padding: 16px 20px;
+  min-height: 48px;
   background: #FAFAFA;
   border: 1px solid #ECEDF0;
   border-radius: 12px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-
-  &:hover {
-    background: #F0F0F0;
-  }
 `;
 
 const StyleText = styled.span`
   font-family: 'Hiragino Sans', sans-serif;
-  font-weight: 600;
-  font-size: 12px;
+  font-weight: 400;
+  font-size: 14px;
   line-height: 1.5;
-  color: #9B9B9C;
+  color: #31373D;
+  word-break: break-word;
+  text-align: left;
+`;
+
+const StyleInput = styled.input`
+  width: 100%;
+  height: 48px;
+  padding: 0 16px;
+  background: #FFFFFF;
+  border: 1px solid #ECEDF0;
+  border-radius: 12px;
+  font-family: 'Hiragino Sans', sans-serif;
+  font-weight: 400;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #222222;
+  outline: none;
+
+  &::placeholder {
+    color: #9AA0A6;
+  }
+
+  &:focus {
+    border-color: #99EA48;
+    box-shadow: 0 0 0 3px rgba(153, 234, 72, 0.1);
+  }
 `;
 
 const GenerateButton = styled.button`
@@ -255,7 +252,7 @@ const GenerateButton = styled.button`
   letter-spacing: -0.02em;
   cursor: pointer;
   transition: all 0.3s ease;
-  margin: 0 auto;
+  margin: 30px auto;
 
   &:hover {
     background: #B0B0B0;
@@ -384,51 +381,253 @@ const DownloadButton = styled.button`
   }
 `;
 
+const RegenerateButton = styled.button`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 16px 32px;
+  background: transparent;
+  border: 1px solid rgba(155, 155, 156, 0.42);
+  border-radius: 70px;
+  color: #010205;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-weight: 700;
+  font-size: 16px;
+  line-height: 1.4;
+  letter-spacing: -0.02em;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  width: 100%;
+  margin-top: -45px;
+
+  &:hover {
+    background: rgba(155, 155, 156, 0.1);
+    transform: translateY(-2px);
+  }
+
+  &:disabled {
+    background: #E0E0E0;
+    cursor: not-allowed;
+    transform: none;
+  }
+`;
+
 const ImageScreen = () => {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState('Generate Images');
+
   const [isGenerating, setIsGenerating] = useState(false);
+  const [regeneratingImages, setRegeneratingImages] = useState([false, false, false]);
   const [imagesGenerated, setImagesGenerated] = useState(false);
+  const [generatedImageUrls, setGeneratedImageUrls] = useState([]);
+  const [imageStyle, setImageStyle] = useState('');
 
   const handleLogoClick = () => {
     navigate('/');
   };
 
-  const handleTabClick = (tab) => {
-    if (tab === 'Target') {
-      navigate('/target');
-    } else if (tab === 'Product') {
-      navigate('/product');
-    } else if (tab === 'Generated texts') {
-      navigate('/prediction');
-    } else {
-      setActiveTab(tab);
+  const handleGenerateImages = async () => {
+    try {
+      // localStorage에서 선택된 마케팅 문구 가져오기
+      const selectedOption = localStorage.getItem('selectedOption');
+      const selectionLogs = JSON.parse(localStorage.getItem('selectionLogs') || '[]');
+      
+      if (!selectedOption || selectionLogs.length === 0) {
+        alert('먼저 PredictionScreen에서 문구를 선택해주세요.');
+        return;
+      }
+      
+      // 가장 최근 선택 로그에서 마케팅 문구 가져오기
+      const latestLog = selectionLogs[selectionLogs.length - 1];
+      const marketingText = latestLog.marketingText;
+      
+      if (!marketingText) {
+        alert('선택된 마케팅 문구를 찾을 수 없습니다.');
+        return;
+      }
+      
+      setIsGenerating(true);
+      
+      // 마케팅 문구와 스타일을 결합하여 프롬프트 생성
+      const combinedPrompt = imageStyle.trim() 
+        ? `${marketingText}\n\n스타일 요청: ${imageStyle}`
+        : marketingText;
+
+      // OpenAI API 호출하여 이미지 생성
+      const response = await fetch('/api/generate-images', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          prompt: combinedPrompt,
+          n: 3, // 3개의 이미지 생성
+          size: '1024x1024'
+        }),
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      if (data.images && data.images.length > 0) {
+        setGeneratedImageUrls(data.images);
+        setImagesGenerated(true);
+      } else {
+        throw new Error('이미지 생성에 실패했습니다.');
+      }
+      
+    } catch (error) {
+      console.error('이미지 생성 오류:', error);
+      alert('이미지 생성 중 오류가 발생했습니다: ' + error.message);
+    } finally {
+      setIsGenerating(false);
     }
   };
 
-  const handleGenerateImages = () => {
-    setIsGenerating(true);
-    
-    // 3초 후에 이미지 생성 완료
-    setTimeout(() => {
-      setIsGenerating(false);
-      setImagesGenerated(true);
-    }, 3000);
+  const handleDownload = async (imageIndex) => {
+    try {
+      const imageUrl = generatedImageUrls[imageIndex];
+      if (!imageUrl) {
+        alert('다운로드할 이미지가 없습니다.');
+        return;
+      }
+
+      // 직접 fetch로 이미지 다운로드
+      const response = await fetch(imageUrl, {
+        method: 'GET',
+        mode: 'cors',
+        headers: {
+          'Accept': 'image/*'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const blob = await response.blob();
+      
+      // PNG MIME 타입으로 설정
+      const pngBlob = new Blob([blob], { type: 'image/png' });
+      
+      // 다운로드 링크 생성
+      const url = window.URL.createObjectURL(pngBlob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `generated-image-${imageIndex + 1}.png`;
+      link.style.display = 'none';
+      
+      // 다운로드 실행
+      document.body.appendChild(link);
+      link.click();
+      
+      // 정리
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      console.log(`이미지 ${imageIndex + 1} 다운로드 완료`);
+      
+    } catch (error) {
+      console.error('다운로드 오류:', error);
+      
+      // CORS 오류 시 대체 방법: 새 탭에서 이미지 열기
+      try {
+        const imageUrl = generatedImageUrls[imageIndex];
+        if (imageUrl) {
+          const newWindow = window.open(imageUrl, '_blank');
+          if (newWindow) {
+            alert('이미지를 새 탭에서 열었습니다. 우클릭하여 "이미지를 다른 이름으로 저장"을 선택해주세요.');
+          } else {
+            alert('팝업이 차단되었습니다. 팝업 차단을 해제하고 다시 시도해주세요.');
+          }
+        }
+      } catch (fallbackError) {
+        console.error('대체 방법 오류:', fallbackError);
+        alert('다운로드에 실패했습니다. 이미지 URL을 복사하여 브라우저에서 직접 열어보세요.');
+      }
+    }
   };
 
-  const handleDownload = (imageIndex) => {
-    // 다운로드 기능 (향후 구현)
-    alert(`이미지 ${imageIndex + 1} 다운로드 기능은 향후 구현 예정입니다.`);
+  const handleRegenerate = async (imageIndex) => {
+    try {
+      // localStorage에서 선택된 마케팅 문구 가져오기
+      const selectedOption = localStorage.getItem('selectedOption');
+      const selectionLogs = JSON.parse(localStorage.getItem('selectionLogs') || '[]');
+      
+      if (!selectedOption || selectionLogs.length === 0) {
+        alert('먼저 PredictionScreen에서 문구를 선택해주세요.');
+        return;
+      }
+      
+      // 가장 최근 선택 로그에서 마케팅 문구 가져오기
+      const latestLog = selectionLogs[selectionLogs.length - 1];
+      const marketingText = latestLog.marketingText;
+      
+      if (!marketingText) {
+        alert('선택된 마케팅 문구를 찾을 수 없습니다.');
+        return;
+      }
+      
+      // 해당 이미지만 재생성 상태로 설정
+      const newRegeneratingImages = [...regeneratingImages];
+      newRegeneratingImages[imageIndex] = true;
+      setRegeneratingImages(newRegeneratingImages);
+      
+      // 마케팅 문구와 스타일을 결합하여 프롬프트 생성
+      const combinedPrompt = imageStyle.trim() 
+        ? `${marketingText}\n\n스타일 요청: ${imageStyle}`
+        : marketingText;
+
+      // OpenAI API 호출하여 특정 이미지만 재생성
+      const response = await fetch('/api/generate-images', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          prompt: combinedPrompt,
+          n: 1, // 1개의 이미지만 생성
+          size: '1024x1024'
+        }),
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      if (data.images && data.images.length > 0) {
+        // 특정 인덱스의 이미지만 교체
+        const newImageUrls = [...generatedImageUrls];
+        newImageUrls[imageIndex] = data.images[0];
+        setGeneratedImageUrls(newImageUrls);
+      } else {
+        throw new Error('이미지 재생성에 실패했습니다.');
+      }
+      
+    } catch (error) {
+      console.error('이미지 재생성 오류:', error);
+      alert('이미지 재생성 중 오류가 발생했습니다: ' + error.message);
+    } finally {
+      // 해당 이미지의 재생성 상태만 해제
+      const newRegeneratingImages = [...regeneratingImages];
+      newRegeneratingImages[imageIndex] = false;
+      setRegeneratingImages(newRegeneratingImages);
+    }
   };
 
   const handleReset = () => {
     setImagesGenerated(false);
     setIsGenerating(false);
+    setImageStyle('');
   };
 
   return (
     <ImageScreenContainer>
-      <BackgroundNoise />
       
       <Header>
         <Logo onClick={handleLogoClick}>
@@ -437,7 +636,7 @@ const ImageScreen = () => {
             <LogoSquare2 />
             <LogoSquare3 />
           </LogoIcon>
-          <LogoText>Clicklit!</LogoText>
+          <LogoText>Clicklit</LogoText>
         </Logo>
       </Header>
 
@@ -447,40 +646,48 @@ const ImageScreen = () => {
         </PageHeader>
 
         <TabContainer>
-          <Tab 
-            isActive={activeTab === 'Target'} 
-            onClick={() => handleTabClick('Target')}
-          >
+          <Tab>
             Target
           </Tab>
-          <Tab 
-            isActive={activeTab === 'Product'} 
-            onClick={() => handleTabClick('Product')}
-          >
+          <Tab>
             Product
           </Tab>
-          <Tab 
-            isActive={activeTab === 'Generated texts'} 
-            onClick={() => handleTabClick('Generated texts')}
-          >
-            Generated texts
+          <Tab>
+            Prediction
           </Tab>
-          <Tab 
-            isActive={activeTab === 'Generate Images'} 
-            onClick={() => handleTabClick('Generate Images')}
-          >
+          <Tab style={{ fontWeight: '700', color: '#000000' }}>
             Generate Images
           </Tab>
         </TabContainer>
 
         <FilterBlock>
           <FilterHeader>
-            <FilterTitle>이미지 스타일</FilterTitle>
-            <ResetButton onClick={handleReset}>Reset</ResetButton>
+            <FilterTitle>선택된 마케팅 문구</FilterTitle>
           </FilterHeader>
           <StyleSelector>
-            <StyleText>#밝은 #하늘색 #시원한</StyleText>
+            <StyleText>
+              {(() => {
+                const selectionLogs = JSON.parse(localStorage.getItem('selectionLogs') || '[]');
+                if (selectionLogs.length > 0) {
+                  const latestLog = selectionLogs[selectionLogs.length - 1];
+                  return latestLog.marketingText || '선택된 문구가 없습니다.';
+                }
+                return '먼저 PredictionScreen에서 문구를 선택해주세요.';
+              })()}
+            </StyleText>
           </StyleSelector>
+        </FilterBlock>
+
+        <FilterBlock>
+          <FilterHeader>
+            <FilterTitle>이미지 스타일 (선택사항)</FilterTitle>
+            <ResetButton onClick={handleReset}>초기화</ResetButton>
+          </FilterHeader>
+          <StyleInput
+            placeholder="예: 밝은, 하늘색, 시원한"
+            value={imageStyle}
+            onChange={(e) => setImageStyle(e.target.value)}
+          />
         </FilterBlock>
 
         <GenerateButton 
@@ -502,14 +709,35 @@ const ImageScreen = () => {
             {[1, 2, 3].map((index) => (
               <ImageCard key={index}>
                 <ImagePlaceholder>
-                  <ImageLines>
-                    <LongLine />
-                    <ShortLine />
-                  </ImageLines>
+                  {generatedImageUrls[index - 1] ? (
+                    <img 
+                      src={generatedImageUrls[index - 1]} 
+                      alt={`Generated ${index}`}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '12px' }}
+                    />
+                  ) : (
+                    <ImageLines>
+                      <LongLine />
+                      <ShortLine />
+                    </ImageLines>
+                  )}
                 </ImagePlaceholder>
                 <DownloadButton onClick={() => handleDownload(index - 1)}>
                   다운로드
                 </DownloadButton>
+                <RegenerateButton 
+                  onClick={() => handleRegenerate(index - 1)}
+                  disabled={regeneratingImages[index - 1]}
+                >
+                  {regeneratingImages[index - 1] ? (
+                    <>
+                      <LoadingSpinner />
+                      재생성 중...
+                    </>
+                  ) : (
+                    '재생성'
+                  )}
+                </RegenerateButton>
               </ImageCard>
             ))}
           </ResultsContainer>
