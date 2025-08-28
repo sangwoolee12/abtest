@@ -8,9 +8,7 @@ from typing import List, Dict, Any, Tuple, Optional
 from .config import PERSONAS, CALIBRATION
 from .models import PredictRequest
 
-# -----------------------------
 # JSON 추출 유틸
-# -----------------------------
 _JSON_BLOCK = re.compile(r"\{[\s\S]*\}")
 
 def _extract_json(text: str) -> dict:
@@ -34,9 +32,7 @@ def _extract_json(text: str) -> dict:
     # 전체가 JSON일 수도 있음
     return json.loads(s)
 
-# -----------------------------
 # 페르소나 샘플링
-# -----------------------------
 def sample_personas(req: PredictRequest, topN: int = 5) -> List[Dict[str, Any]]:
     filtered = []
     for p in PERSONAS:
@@ -55,9 +51,7 @@ def sample_personas(req: PredictRequest, topN: int = 5) -> List[Dict[str, Any]]:
     pool = [p for s, p in filtered[:max(topN*2, topN)]] or PERSONAS
     return random.sample(pool, k=min(topN, len(pool)))
 
-# -----------------------------
 # Gemini 호출 (재시도 + 모델 롤오버)
-# -----------------------------
 def _call_gemini_with_retry(prompt: str, max_retries: int = 3, timeout_s: float = 25.0) -> Optional[dict]:
     """
     - 우선순위 모델: 환경변수 GEMINI_MODEL > 기본 리스트
@@ -76,7 +70,7 @@ def _call_gemini_with_retry(prompt: str, max_retries: int = 3, timeout_s: float 
     if os.getenv("GEMINI_MODEL"):
         priority.append(os.getenv("GEMINI_MODEL").strip())
     # 기본 롤오버 순서
-    for m in ["gemini-2.5-pro", "gemini-1.5-pro", "gemini-1.5-flash"]:
+    for m in ["gemini-1.5-pro", "gemini-1.5-flash"]:
         if m not in priority:
             priority.append(m)
 
@@ -126,23 +120,23 @@ def _call_gemini_with_retry(prompt: str, max_retries: int = 3, timeout_s: float 
     print(f"[Gemini] ❌ 모든 모델/재시도 실패: {last_err}")
     return None
 
-# -----------------------------
 # Gemini 기반 점수 계산 (강화판)
-# -----------------------------
-def llm_persona_scores(req: PredictRequest, personas: List[Dict[str, Any]]) -> Tuple[List[Dict[str, Any]], str]:
+def llm_persona_scores(req: PredictRequest, personas: List[Dict[str, Any]]) -> Tuple[List[Dict[str, Any]], str, Optional[Dict[str, Any]]]:
     """
     - Gemini를 반드시 시도
     - 500/내부 오류 등은 재시도 및 모델 롤오버로 최대한 극복
-    - 성공 시 페르소나별 a_score/b_score를 사용
+    - 성공 시 페르소나별 a_score/b_score와 상세 분석을 사용
     - 실패 시 예외 throw → 호출측에서 fast fallback
     """
     persona_lines = [
         f"- {p.get('name','N/A')} ({p['age_group']} {p['gender']}): {p['interests']}"
         for p in personas
     ]
-    prompt = f"""
-당신은 마케팅 전문가입니다. 두 개의 마케팅 문구 A안, B안과 여러 페르소나 정보를 보고,
-각 페르소나가 어느 쪽에 더 반응할지 0~1 점수로 평가하세요.
+    
+    # 페르소나 점수 계산용 프롬프트
+    score_prompt = f"""
+너는 경력 30년 이상의 마케팅 전문가야. 두 개의 마케팅 문구 A안, B안과 여러 페르소나 정보를 보고,
+각 페르소나가 어느 쪽에 더 반응할지 0~1 점수로 평가해.
 
 마케팅 문구:
 A안: {req.marketing_a}
@@ -161,12 +155,26 @@ B안: {req.marketing_b}
 }}
 """.strip()
 
-    data = _call_gemini_with_retry(prompt, max_retries=3)
-    if data is None:
+    # 상세 분석용 프롬프트 (llm_utils.py의 _build_prompt 활용)
+    try:
+        from .llm_utils import _build_prompt, _parse_llm_response
+        analysis_prompt = _build_prompt(req)
+        analysis_data = _call_gemini_with_retry(analysis_prompt, max_retries=3)
+        if analysis_data:
+            llm_analysis = _parse_llm_response(str(analysis_data), "analysis")
+        else:
+            llm_analysis = None
+    except Exception as e:
+        print(f"[LLM Analysis] 상세 분석 생성 실패: {e}")
+        llm_analysis = None
+
+    # 페르소나 점수 계산
+    score_data = _call_gemini_with_retry(score_prompt, max_retries=3)
+    if score_data is None:
         # 호출측에서 fast fallback 하도록 예외
         raise RuntimeError("Gemini 호출 실패")
 
-    plist = data.get("personas", [])
+    plist = score_data.get("personas", [])
     if not isinstance(plist, list) or not plist:
         raise ValueError("Gemini 응답 포맷 오류: personas 누락")
 
@@ -193,11 +201,9 @@ B안: {req.marketing_b}
         winner_keywords.extend(persona.get("keywords", []))
 
     dedup = list(dict.fromkeys(winner_keywords))
-    return rows, ", ".join(dedup[:5])
+    return rows, ", ".join(dedup[:5]), llm_analysis
 
-# -----------------------------
 # 빠른 점수 계산 (fallback)
-# -----------------------------
 def fast_persona_scores(req: PredictRequest, personas: List[Dict[str, Any]]) -> Tuple[List[Dict[str, Any]], str]:
     rows = []
     kw_pool = []
@@ -213,9 +219,7 @@ def fast_persona_scores(req: PredictRequest, personas: List[Dict[str, Any]]) -> 
         kw_pool.extend(persona.get("keywords", []))
     return rows, ", ".join(list(dict.fromkeys(kw_pool))[:5])
 
-# -----------------------------
 # 내부 매칭 점수 (fallback용)
-# -----------------------------
 def _calculate_matching_score(persona: Dict[str, Any], marketing_text: str) -> float:
     text_lower = (marketing_text or "").lower()
     score = 0.0
@@ -225,10 +229,8 @@ def _calculate_matching_score(persona: Dict[str, Any], marketing_text: str) -> f
     score += random.uniform(-0.05, 0.05)
     return float(max(0.0, min(1.0, 0.3 + score)))
 
-# -----------------------------
 # CTR 계산
-# -----------------------------
-def weighted_ctr_from_scores(rows: List[Dict[str, Any]]) -> Tuple[float, float, str, str]:
+def weighted_ctr_from_scores(rows: List[Dict[str, Any]], llm_analysis: Optional[Dict[str, Any]] = None) -> Tuple[float, float, str, str]:
     if not rows:
         return 0.45, 0.55, "기본 분석", "기본 분석"
     total_a = sum(r["a_score"] for r in rows)
@@ -238,37 +240,84 @@ def weighted_ctr_from_scores(rows: List[Dict[str, Any]]) -> Tuple[float, float, 
         ctr_b = total_b / (total_a + total_b)
     else:
         ctr_a, ctr_b = 0.45, 0.55
-    reasons_a = "AI 분석: 타겟 키워드 정합성 높음"
-    reasons_b = "AI 분석: 메시지 명확성/관심사 적합"
+    
+    # LLM 분석 결과가 있으면 사용, 없으면 기본 분석 생성
+    if llm_analysis and "analysis_a" in llm_analysis and "analysis_b" in llm_analysis:
+        reasons_a = llm_analysis["analysis_a"]
+        reasons_b = llm_analysis["analysis_b"]
+    else:
+        # 더 구체적이고 유용한 분석 텍스트 생성
+        if ctr_a > ctr_b:
+            reasons_a = f"AI 분석 결과 A안이 {ctr_a:.1%}의 CTR로 우수한 성과를 예상해요. 타겟 페르소나와의 높은 정합성과 키워드 매칭이 주요 요인이에요."
+            reasons_b = f"B안은 {ctr_b:.1%}의 CTR을 예상하며, 메시지의 명확성과 관심사 적합성 측면에서 개선 여지가 있어요."
+        else:
+            reasons_a = f"A안은 {ctr_a:.1%}의 CTR을 예상하며, 타겟 키워드 정합성 측면에서 보완이 필요해요."
+            reasons_b = f"AI 분석 결과 B안이 {ctr_b:.1%}의 CTR로 우수한 성과를 예상해요. 메시지의 명확성과 관심사 적합성이 주요 요인이에요."
+    
     return float(ctr_a), float(ctr_b), reasons_a, reasons_b
 
-# -----------------------------
 # 간단 KNN 팔로우(시뮬레이션)
-# -----------------------------
 def _knn_follow(category: str, ages: List[str], genders: List[str], interests: str,
                 A: str, B: str, k: int = 5, tau_hard: float = 0.9) -> Dict[str, Any]:
     if random.random() < 0.15:
         return {"mode": "hard", "follow_class": random.choice(["A", "B"])}
     return {"mode": "none"}
 
-# -----------------------------
-# 제3문구 생성
-# -----------------------------
+# 제3문구 생성 (LLM 활용)
 def generate_third_copy(req: PredictRequest, winner_keywords: str, winner_class: str) -> str:
     if not winner_keywords:
         winner_keywords = "트렌디, 혁신"
-    category_templates = {
-        "뷰티":   f"'{winner_keywords}'의 핵심 가치를 담아 더욱 매력적인 {req.category} 경험을 선사해요",
-        "패션":   f"'{winner_keywords}'의 트렌드를 반영한 독특한 {req.category} 스타일을 제안해요",
-        "식품":   f"'{winner_keywords}'의 맛과 건강을 모두 만족시키는 {req.category}를 경험해보세요",
-        "전자제품": f"'{winner_keywords}'의 혁신 기술로 더 스마트한 {req.category} 라이프를 시작하세요",
-        "홈리빙": f"'{winner_keywords}'의 편리함과 아름다움을 담은 {req.category}로 공간을 완성하세요",
-    }
-    return category_templates.get(req.category or "기타", f"'{winner_keywords}'의 장점을 결합한 {req.category} 솔루션을 제공해요")
+    
+    # LLM을 사용하여 새로운 마케팅 문구 생성
+    try:
+        prompt = f"""
+너는 30년 경력의 마케팅 전문가야. 다음 정보를 바탕으로 새로운 마케팅 문구를 생성해줘.
 
-# -----------------------------
+제품 카테고리: {req.category or "일반"}
+타겟 연령대: {', '.join(req.age_groups or [])}
+타겟 성별: {', '.join(req.genders or [])}
+관심사: {req.interests or '없음'}
+우승 키워드: {winner_keywords}
+우승 클래스: {winner_class}
+
+기존 A안: {req.marketing_a}
+기존 B안: {req.marketing_b}
+
+위 정보를 바탕으로 A안과 B안의 장점을 결합한 새로운 마케팅 문구를 생성해주세요.
+반드시 다음 형식으로만 응답해주세요:
+
+{{
+    "new_marketing_text": "새로운 마케팅 문구 (한국어, 50자 이내, 해요체 사용)"
+}}
+
+중요: 반드시 위 JSON 형식으로만 응답해주세요. 다른 설명이나 텍스트는 절대 포함하지 마세요.
+모든 키와 문자열 값은 따옴표로 감싸주세요.
+"""
+        
+        data = _call_gemini_with_retry(prompt, max_retries=3)
+        if data and "new_marketing_text" in data:
+            return data["new_marketing_text"]
+    except Exception as e:
+        print(f"[LLM C안 생성] 실패, 기본 템플릿 사용: {e}")
+    
+    # LLM 실패 시 기본 템플릿 사용 (50자 이내)
+    category_templates = {
+        "뷰티": f"'{winner_keywords}'의 핵심 가치를 담은 매력적인 {req.category} 경험을 선사해요.",
+        "패션": f"'{winner_keywords}'의 트렌드를 반영한 독특한 {req.category} 스타일을 제안해요.",
+        "식품": f"'{winner_keywords}'의 맛과 건강을 모두 만족시키는 {req.category}를 경험해보세요.",
+        "전자제품": f"'{winner_keywords}'의 혁신 기술로 더 스마트한 {req.category} 라이프를 시작하세요.",
+        "홈리빙": f"'{winner_keywords}'의 편리함과 아름다움을 담은 {req.category}로 공간을 완성하세요.",
+        "게임": f"'{winner_keywords}'의 재미와 스릴을 담은 {req.category} 경험을 즐겨보세요.",
+        "여행": f"'{winner_keywords}'의 특별함을 담은 {req.category} 여행을 계획해보세요.",
+        "스포츠": f"'{winner_keywords}'의 열정과 에너지를 담은 {req.category} 활동을 시작하세요.",
+        "부동산": f"'{winner_keywords}'의 가치를 담은 {req.category} 정보를 확인해보세요.",
+        "금융": f"'{winner_keywords}'의 안전성과 수익성을 담은 {req.category} 서비스를 경험해보세요."
+    }
+    
+    default_template = f"'{winner_keywords}'의 장점을 결합한 {req.category} 솔루션을 제공해요."
+    return category_templates.get(req.category or "기타", default_template)
+
 # CTR 캘리브레이션
-# -----------------------------
 def calibrate_ctr(ctr: float, category: str, shrink: float = 0.35) -> float:
     e = CALIBRATION.get(category or "기타", CALIBRATION["기타"])
     calibrated = e["min"] + (e["max"] - e["min"]) * float(max(0.0, min(1.0, ctr))) * (1 - shrink)

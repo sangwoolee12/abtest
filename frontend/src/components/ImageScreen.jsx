@@ -235,6 +235,16 @@ const StyleInput = styled.input`
   }
 `;
 
+const StyleDescription = styled.div`
+  margin-top: 3px;
+  font-family: 'Hiragino Sans', sans-serif;
+  font-weight: 400;
+  font-size: 12px;
+  line-height: 1.4;
+  color: #666666;
+  text-align: left;
+`;
+
 const GenerateButton = styled.button`
   display: flex;
   align-items: center;
@@ -446,12 +456,16 @@ const ImageScreen = () => {
         return;
       }
       
+      // 스타일 입력 검증
+      if (!imageStyle.trim()) {
+        alert('이미지 스타일을 입력해주세요. (예: 밝고 따뜻한 느낌, 파스텔 톤, 미니멀한 디자인)');
+        return;
+      }
+      
       setIsGenerating(true);
       
-      // 마케팅 문구와 스타일을 결합하여 프롬프트 생성
-      const combinedPrompt = imageStyle.trim() 
-        ? `${marketingText}\n\n스타일 요청: ${imageStyle}`
-        : marketingText;
+      // 마케팅 문구와 스타일을 결합하여 이미지 생성
+      const combinedPrompt = `마케팅 문구: ${marketingText}\n스타일 요청: ${imageStyle.trim()}`;
 
       console.log('🔍 이미지 생성 요청:', {
         prompt: combinedPrompt,
@@ -584,15 +598,19 @@ const ImageScreen = () => {
         return;
       }
       
+      // 스타일 입력 검증
+      if (!imageStyle.trim()) {
+        alert('이미지 스타일을 입력해주세요. (예: 밝고 따뜻한 느낌, 파스텔 톤, 미니멀한 디자인)');
+        return;
+      }
+      
       // 해당 이미지만 재생성 상태로 설정
       const newRegeneratingImages = [...regeneratingImages];
       newRegeneratingImages[imageIndex] = true;
       setRegeneratingImages(newRegeneratingImages);
       
-      // 마케팅 문구와 스타일을 결합하여 프롬프트 생성
-      const combinedPrompt = imageStyle.trim() 
-        ? `${marketingText}\n\n스타일 요청: ${imageStyle}`
-        : marketingText;
+      // 마케팅 문구와 스타일을 결합하여 이미지 생성
+      const combinedPrompt = `마케팅 문구: ${marketingText}\n스타일 요청: ${imageStyle.trim()}`;
 
       // OpenAI API 호출하여 특정 이미지만 재생성
       const response = await fetch('/api/generate-images', {
@@ -649,7 +667,7 @@ const ImageScreen = () => {
             <LogoSquare2 />
             <LogoSquare3 />
           </LogoIcon>
-          <LogoText>Clicklit</LogoText>
+          <LogoText>ClickLit</LogoText>
         </Logo>
       </Header>
 
@@ -693,25 +711,31 @@ const ImageScreen = () => {
 
         <FilterBlock>
           <FilterHeader>
-            <FilterTitle>이미지 스타일 (선택사항)</FilterTitle>
+            <FilterTitle>이미지 스타일</FilterTitle>
             <ResetButton onClick={handleReset}>초기화</ResetButton>
           </FilterHeader>
           <StyleInput
-            placeholder="예: 밝은, 하늘색, 시원한"
+            placeholder="예: 밝고 따뜻한 느낌, 파스텔 톤, 미니멀한 디자인, 비즈니스 캐주얼"
             value={imageStyle}
             onChange={(e) => setImageStyle(e.target.value)}
           />
+          <StyleDescription>
+            색상, 분위기, 디자인 스타일 등을 상세히 설명할수록 더 정확한 이미지가 생성돼요. <br/>
+            마케팅 문구는 이미지에 포함되지 않으며, 순수한 스타일만 반영돼요.
+          </StyleDescription>
         </FilterBlock>
 
         <GenerateButton 
           onClick={handleGenerateImages}
-          disabled={isGenerating}
+          disabled={isGenerating || !imageStyle.trim()}
         >
           {isGenerating ? (
             <>
               <LoadingSpinner />
               생성 중...
             </>
+          ) : !imageStyle.trim() ? (
+            '스타일을 입력해주세요'
           ) : (
             '이미지 생성하기'
           )}

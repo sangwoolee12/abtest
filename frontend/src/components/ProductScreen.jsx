@@ -420,7 +420,7 @@ const ProductScreen = () => {
             <LogoSquare2 />
             <LogoSquare3 />
           </LogoIcon>
-          <LogoText>Clicklit</LogoText>
+          <LogoText>ClickLit</LogoText>
         </Logo>
       </Header>
 

@@ -6,17 +6,13 @@ from typing import Any, Dict, List, Optional
 
 from .config import RESULTS_PATH
 
-# -------------------------------------------------
 # 공통 텍스트 유틸 (llm_utils 등에서 사용)
-# -------------------------------------------------
 def _cleanup_text(s: Optional[str]) -> str:
     if not s:
         return ""
     return " ".join(str(s).split())
 
-# -------------------------------------------------
 # JSONL 입출력
-# -------------------------------------------------
 def append_jsonl(path: str, obj: Dict[str, Any]) -> None:
     """JSONL 파일에 한 줄 추가 (경로 생성 포함)."""
     os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -40,9 +36,7 @@ def _load_jsonl(path: str) -> List[Dict[str, Any]]:
                 continue
     return out
 
-# -------------------------------------------------
 # user_final_text 업데이트 (핵심)
-# -------------------------------------------------
 def update_user_choice_inplace(log_id: str, user_final_text: str) -> bool:
     """
     RESULTS_PATH(JSONL)에서 주어진 log_id 레코드를 찾아
@@ -108,9 +102,7 @@ def update_user_choice_inplace(log_id: str, user_final_text: str) -> bool:
 
     return updated
 
-# -------------------------------------------------
 # rebuild-index용 간단 피처/클래스 유틸
-# -------------------------------------------------
 def _feature_sentence(category: str,
                       ages: List[str],
                       genders: List[str],

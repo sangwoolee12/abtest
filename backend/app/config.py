@@ -4,22 +4,16 @@ from dotenv import load_dotenv
 # .env 파일 로드
 load_dotenv()
 
-# -----------------------------
 # API 설정
-# -----------------------------
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-pro")
-GEMINI_TEMPERATURE = float(os.getenv("GEMINI_TEMPERATURE", "0.2"))
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-1.5-pro")
+GEMINI_TEMPERATURE = float(os.getenv("GEMINI_TEMPERATURE", "0.6"))
 EMBED_MODEL = "models/embedding-001"
 
-# -----------------------------
 # 파일 경로
-# -----------------------------
 RESULTS_PATH = "data/abtest_results.jsonl"
 
-# -----------------------------
-# 페르소나 데이터 (TargetScreen과 일치)
-# -----------------------------
+# 페르소나 데이터
 PERSONAS = [
     {
         "id": "p1",
@@ -103,9 +97,7 @@ PERSONAS = [
     }
 ]
 
-# -----------------------------
-# 카테고리별 CTR 캘리브레이션 (새로운 personas와 일치)
-# -----------------------------
+# 카테고리별 CTR 캘리브레이션
 CALIBRATION = {
     "뷰티": {"min": 0.02, "max": 0.08, "shrink": 0.35},
     "화장품": {"min": 0.025, "max": 0.09, "shrink": 0.35},

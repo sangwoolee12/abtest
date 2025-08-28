@@ -1,11 +1,7 @@
 from pydantic import BaseModel
 from typing import List, Optional
-import time
 
-# -----------------------------
 # 요청/응답 모델
-# -----------------------------
-
 class PredictRequest(BaseModel):
     age_groups: Optional[List[str]] = None
     genders: Optional[List[str]] = None
@@ -37,10 +33,7 @@ class UserChoiceIn(BaseModel):
     log_id: str
     user_final_text: str  # 사용자가 고른 실제 텍스트(A/B/제3 무엇이든 문자열)
 
-# -----------------------------
 # 저장용 모델
-# -----------------------------
-
 class ABTestStoredResult(BaseModel):
     log_id: str
     timestamp: float
@@ -57,10 +50,7 @@ class ABTestStoredResult(BaseModel):
     ai_top_ctr_choice: str
     user_final_text: Optional[str] = None
 
-# -----------------------------
 # 페르소나 모델
-# -----------------------------
-
 class Persona(BaseModel):
     age_group: str
     gender: str

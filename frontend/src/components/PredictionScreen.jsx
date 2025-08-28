@@ -133,6 +133,16 @@ const TabContainer = styled.div`
   justify-content: center;
   gap: 0;
   margin-bottom: 18px;
+  width: 100%;
+  margin: 0 auto 18px;
+
+  @media (min-width: 768px) {
+    max-width: 800px;
+  }
+
+  @media (min-width: 1024px) {
+    max-width: 969px;
+  }
 `;
 
 const Tab = styled.div`
@@ -149,32 +159,32 @@ const Tab = styled.div`
 
 const SummaryPanel = styled.div`
   width: 100%;
-  min-height: 80px;
+  min-height: 60px;
   background:rgb(255, 255, 255);
   border: 1px solid #DDDDDD;
   border-radius: 12px;
-  padding: 8px 16px;
+  padding: 6px 12px;
   display: flex;
   align-items: center;
-  gap: 16px;
-  margin: 0 auto 45px;
+  gap: 12px;
+  margin: 0 auto 30px;
   flex-wrap: wrap;
 
   @media (min-width: 768px) {
-    max-width: 800px;
-    padding: 8px 32px;
+    max-width: 450px;
+    padding: 6px 20px;
   }
 
   @media (min-width: 1024px) {
-    max-width: 969px;
-    padding: 8px 40px;
+    max-width: 500px;
+    padding: 6px 24px;
   }
 `;
 
 const SummarySection = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 2.25px;
+  gap: 1px;
   flex: 1;
 `;
 
@@ -322,7 +332,7 @@ const ChartContainer = styled.div`
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 15px;
+  gap: 5px;
 `;
 
 const ChartBar = styled.div`
@@ -370,7 +380,7 @@ const ContentPlaceholder = styled.div`
 `;
 
 const AnalysisSection = styled.div`
-  margin-top: 16px;
+  margin-top: 8px;
 `;
 
 const AnalysisHeader = styled.div`
@@ -438,6 +448,65 @@ const AnalysisOverlay = styled.div`
   pointer-events: none;
 `;
 
+const MarketingTextSection = styled.div`
+  margin: 12px 0;
+  padding: 16px;
+  background: #F8F9FA;
+  border-radius: 12px;
+  border: 1px solid #E9ECEF;
+`;
+
+const MarketingTextLabel = styled.div`
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-weight: 600;
+  font-size: 14px;
+  line-height: 1.4;
+  color: #495057;
+  margin-bottom: 8px;
+`;
+
+const MarketingTextContent = styled.div`
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-weight: 400;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #212529;
+  background: #FFFFFF;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid #DEE2E6;
+  word-break: break-word;
+  min-height: 80px;
+  max-height: 80px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+`;
+
+const CTRSummary = styled.div`
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-weight: 600;
+  font-size: 16px;
+  line-height: 1.4;
+  color: #495057;
+  background: #F8F9FA;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid #E9ECEF;
+  margin-bottom: 12px;
+  text-align: center;
+`;
+
+const AnalysisText = styled.div`
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-weight: 400;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #212529;
+`;
+
 const ActionButton = styled.button`
   display: flex;
   align-items: center;
@@ -471,7 +540,7 @@ const ActionButton = styled.button`
 
 const PredictionScreen = () => {
   const navigate = useNavigate();
-  const [result, setResult] = useState({ ctr_a: null, ctr_b: null, analysis_a: '', analysis_b: '', ai_suggestion: '' });
+  const [result, setResult] = useState({ ctr_a: null, ctr_b: null, ctr_c: null, analysis_a: '', analysis_b: '', analysis_c: '', ai_suggestion: '' });
   const [error, setError] = useState('');
   
   // 토글 상태 관리
@@ -527,7 +596,7 @@ const PredictionScreen = () => {
             <LogoSquare2 />
             <LogoSquare3 />
           </LogoIcon>
-          <LogoText>Clicklit</LogoText>
+          <LogoText>ClickLit</LogoText>
         </Logo>
       </Header>
 
@@ -571,20 +640,7 @@ const PredictionScreen = () => {
               })()}
             </SummaryValue>
           </SummarySection>
-          <VerticalDivider />
-          <SummarySection>
-            <SummaryLabel>A안</SummaryLabel>
-            <SummaryValue style={{ fontSize: '13px', lineHeight: '1.4' }}>
-              {JSON.parse(localStorage.getItem('product') || '{}').marketing_a || '-'}
-            </SummaryValue>
-          </SummarySection>
-          <VerticalDivider />
-          <SummarySection>
-            <SummaryLabel>B안</SummaryLabel>
-            <SummaryValue style={{ fontSize: '13px', lineHeight: '1.4' }}>
-              {JSON.parse(localStorage.getItem('product') || '{}').marketing_b || '-'}
-            </SummaryValue>
-          </SummarySection>
+
         </SummaryPanel>
 
         <ResultsContainer>
@@ -614,6 +670,14 @@ const PredictionScreen = () => {
               </div>
             </ChartContainer>
 
+            {/* A안 마케팅 문구 표시 */}
+            <MarketingTextSection>
+              <MarketingTextLabel>A안 마케팅 문구</MarketingTextLabel>
+              <MarketingTextContent>
+                {JSON.parse(localStorage.getItem('product') || '{}').marketing_a || 'A안 마케팅 문구가 없습니다.'}
+              </MarketingTextContent>
+            </MarketingTextSection>
+
             <AnalysisSection>
               <AnalysisHeader>
                 <AnalysisTitle>상세 분석</AnalysisTitle>
@@ -629,7 +693,16 @@ const PredictionScreen = () => {
               </AnalysisHeader>
               <AnalysisContent isExpanded={expandedAnalysis.a}>
                 <ContentPlaceholder>
-                  {error ? error : (result.analysis_a || 'A안에 대한 상세한 분석 내용을 확인할 수 있어요.')}
+                  {error ? error : (
+                    <>
+                      <CTRSummary>
+                        <strong>예측 CTR: {result.ctr_a ? `${(result.ctr_a * 100).toFixed(1)}%` : '-'}</strong>
+                      </CTRSummary>
+                      <AnalysisText>
+                        {result.analysis_a || 'A안에 대한 상세한 분석 내용을 확인할 수 있어요.'}
+                      </AnalysisText>
+                    </>
+                  )}
                 </ContentPlaceholder>
                 {!expandedAnalysis.a && checkTextOverflow(result.analysis_a) && (
                   <AnalysisOverlay isExpanded={expandedAnalysis.a} />
@@ -638,10 +711,32 @@ const PredictionScreen = () => {
             </AnalysisSection>
 
             <ActionButton
-              onClick={() => {
+              onClick={async () => {
                 const product = JSON.parse(localStorage.getItem('product') || '{}');
                 const target = JSON.parse(localStorage.getItem('target') || '{}');
                 const marketingText = product.marketing_a || '';
+                
+                // 백엔드에 사용자 선택 전송
+                try {
+                  const response = await fetch('/api/user-choice', {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                      log_id: result.log_id,
+                      user_final_text: marketingText
+                    })
+                  });
+                  
+                  if (response.ok) {
+                    console.log('사용자 선택이 성공적으로 저장되었습니다.');
+                  } else {
+                    console.error('사용자 선택 저장 실패:', response.statusText);
+                  }
+                } catch (error) {
+                  console.error('사용자 선택 저장 중 오류:', error);
+                }
                 
                 // 로그 기록
                 const logData = {
@@ -700,7 +795,15 @@ const PredictionScreen = () => {
               </div>
             </ChartContainer>
 
-            <AnalysisSection>
+              {/* B안 마케팅 문구 표시 */}
+              <MarketingTextSection>
+                <MarketingTextLabel>B안 마케팅 문구</MarketingTextLabel>
+                <MarketingTextContent>
+                  {JSON.parse(localStorage.getItem('product') || '{}').marketing_b || 'B안 마케팅 문구가 없습니다.'}
+                </MarketingTextContent>
+              </MarketingTextSection>
+
+              <AnalysisSection>
               <AnalysisHeader>
                 <AnalysisTitle>상세 분석</AnalysisTitle>
                 <ToggleButton 
@@ -715,7 +818,16 @@ const PredictionScreen = () => {
               </AnalysisHeader>
               <AnalysisContent isExpanded={expandedAnalysis.b}>
                 <ContentPlaceholder>
-                  {error ? error : (result.analysis_b || 'B안에 대한 상세한 분석 내용을 확인할 수 있어요.')}
+                  {error ? error : (
+                    <>
+                      <CTRSummary>
+                        <strong>예측 CTR: {result.ctr_b ? `${(result.ctr_b * 100).toFixed(1)}%` : '-'}</strong>
+                      </CTRSummary>
+                      <AnalysisText>
+                        {result.analysis_b || 'B안에 대한 상세한 분석 내용을 확인할 수 있어요.'}
+                      </AnalysisText>
+                    </>
+                  )}
                 </ContentPlaceholder>
                 {!expandedAnalysis.b && checkTextOverflow(result.analysis_b) && (
                   <AnalysisOverlay isExpanded={expandedAnalysis.b} />
@@ -724,10 +836,32 @@ const PredictionScreen = () => {
             </AnalysisSection>
 
             <ActionButton
-              onClick={() => {
+              onClick={async () => {
                 const product = JSON.parse(localStorage.getItem('product') || '{}');
                 const target = JSON.parse(localStorage.getItem('target') || '{}');
                 const marketingText = product.marketing_b || '';
+                
+                // 백엔드에 사용자 선택 전송
+                try {
+                  const response = await fetch('/api/user-choice', {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                      log_id: result.log_id,
+                      user_final_text: marketingText
+                    })
+                  });
+                  
+                  if (response.ok) {
+                    console.log('사용자 선택이 성공적으로 저장되었습니다.');
+                  } else {
+                    console.error('사용자 선택 저장 실패:', response.statusText);
+                  }
+                } catch (error) {
+                    console.error('사용자 선택 저장 중 오류:', error);
+                }
                 
                 // 로그 기록
                 const logData = {
@@ -782,6 +916,14 @@ const PredictionScreen = () => {
               </div>
             </ChartContainer>
 
+            {/* C안 마케팅 문구 표시 */}
+            <MarketingTextSection>
+              <MarketingTextLabel>C안 마케팅 문구</MarketingTextLabel>
+              <MarketingTextContent>
+                {result.ai_suggestion || 'AI가 생성한 마케팅 문구가 없습니다.'}
+              </MarketingTextContent>
+            </MarketingTextSection>
+
             <AnalysisSection>
               <AnalysisHeader>
                 <AnalysisTitle>상세 분석</AnalysisTitle>
@@ -797,29 +939,60 @@ const PredictionScreen = () => {
               </AnalysisHeader>
               <AnalysisContent isExpanded={expandedAnalysis.c}>
                 <ContentPlaceholder>
-                  {error ? error : (result.ai_suggestion ? 
-                    `${result.ai_suggestion}` : 
-                    'C안에 대한 상세한 분석 내용을 확인할 수 있어요.'
+                  {error ? error : (
+                    <>
+                      <CTRSummary>
+                        <strong>예측 CTR: {result.ctr_c ? `${(result.ctr_c * 100).toFixed(1)}%` : '-'}</strong>
+                      </CTRSummary>
+                      <AnalysisText>
+                        {result.analysis_c ? 
+                          `${result.analysis_c}` : 
+                          'C안에 대한 상세한 분석 내용을 확인할 수 있어요.'
+                        }
+                      </AnalysisText>
+                    </>
                   )}
                 </ContentPlaceholder>
-                {!expandedAnalysis.c && checkTextOverflow(result.ai_suggestion) && (
+                {!expandedAnalysis.c && checkTextOverflow(result.analysis_c) && (
                   <AnalysisOverlay isExpanded={expandedAnalysis.c} />
                 )}
               </AnalysisContent>
             </AnalysisSection>
 
             <ActionButton
-              onClick={() => {
+              onClick={async () => {
                 const product = JSON.parse(localStorage.getItem('product') || '{}');
                 const target = JSON.parse(localStorage.getItem('target') || '{}');
                 const marketingText = result.ai_suggestion || '';
+                
+                // 백엔드에 사용자 선택 전송
+                try {
+                  const response = await fetch('/api/user-choice', {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                      log_id: result.log_id,
+                      user_final_text: marketingText
+                    })
+                  });
+                  
+                  if (response.ok) {
+                    console.log('사용자 선택이 성공적으로 저장되었습니다.');
+                  } else {
+                    console.error('사용자 선택 저장 실패:', response.statusText);
+                  }
+                } catch (error) {
+                  console.error('사용자 선택 저장 중 오류:', error);
+                }
                 
                 // 로그 기록
                 const logData = {
                   timestamp: new Date().toISOString(),
                   selectedOption: 'C',
                   marketingText: marketingText,
-                  ctr: Math.max(result.ctr_a || 0, result.ctr_b || 0),
+                  ctr: result.ctr_c || 0,
                   target: target,
                   product: product,
                   result: result
