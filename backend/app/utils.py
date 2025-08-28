@@ -1,106 +1,149 @@
 import json
-import time
 import os
-from typing import List, Dict, Any
+import tempfile
+import shutil
+from typing import Any, Dict, List, Optional
+
 from .config import RESULTS_PATH
 
-# -----------------------------
-# JSONL 파일 처리
-# -----------------------------
+# -------------------------------------------------
+# 공통 텍스트 유틸 (llm_utils 등에서 사용)
+# -------------------------------------------------
+def _cleanup_text(s: Optional[str]) -> str:
+    if not s:
+        return ""
+    return " ".join(str(s).split())
 
-def append_jsonl(filepath: str, data: Dict[str, Any]) -> None:
-    """JSONL 파일에 데이터 추가"""
-    os.makedirs(os.path.dirname(filepath), exist_ok=True)
-    with open(filepath, 'a', encoding='utf-8') as f:
-        f.write(json.dumps(data, ensure_ascii=False) + '\n')
+# -------------------------------------------------
+# JSONL 입출력
+# -------------------------------------------------
+def append_jsonl(path: str, obj: Dict[str, Any]) -> None:
+    """JSONL 파일에 한 줄 추가 (경로 생성 포함)."""
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "a", encoding="utf-8") as f:
+        f.write(json.dumps(obj, ensure_ascii=False) + "\n")
 
-def _load_jsonl(filepath: str) -> List[Dict[str, Any]]:
-    """JSONL 파일 로드"""
-    if not os.path.exists(filepath):
-        return []
-    
-    data = []
-    with open(filepath, 'r', encoding='utf-8') as f:
+def _load_jsonl(path: str) -> List[Dict[str, Any]]:
+    """JSONL 파일을 리스트로 로드. 손상된 라인은 건너뜀."""
+    out: List[Dict[str, Any]] = []
+    if not os.path.exists(path):
+        return out
+    with open(path, "r", encoding="utf-8") as f:
         for line in f:
             line = line.strip()
-            if line:
-                try:
-                    data.append(json.loads(line))
-                except json.JSONDecodeError:
-                    continue
-    return data
+            if not line:
+                continue
+            try:
+                out.append(json.loads(line))
+            except Exception:
+                # 손상된 라인은 무시
+                continue
+    return out
 
+# -------------------------------------------------
+# user_final_text 업데이트 (핵심)
+# -------------------------------------------------
 def update_user_choice_inplace(log_id: str, user_final_text: str) -> bool:
-    """사용자 최종 선택을 인플레이스로 업데이트"""
+    """
+    RESULTS_PATH(JSONL)에서 주어진 log_id 레코드를 찾아
+    user_final_text를 사용자가 고른 문구로 업데이트한다.
+
+    보완:
+    - log_id 비교 시 str/공백 안전화
+    - user_final_text가 "A"|"B"|"C"로 온 경우, 해당 레코드의
+      marketing_a / marketing_b / ai_generated_text 실제 문구로 치환
+    - 임시 파일로 원자적 교체
+    """
+    if not log_id:
+        return False
+    if not isinstance(user_final_text, str) or not user_final_text.strip():
+        return False
+    if not os.path.exists(RESULTS_PATH):
+        return False
+
+    key = str(log_id).strip()
+    updated = False
+    dirpath = os.path.dirname(RESULTS_PATH) or "."
+    os.makedirs(dirpath, exist_ok=True)
+
+    fd, tmp_path = tempfile.mkstemp(prefix="results_", suffix=".jsonl", dir=dirpath, text=True)
+    os.close(fd)
+
     try:
-        data = _load_jsonl(RESULTS_PATH)
-        updated = False
-        
-        for i, row in enumerate(data):
-            if row.get("log_id") == log_id:
-                data[i]["user_final_text"] = user_final_text
-                updated = True
-                break
-        
-        if updated:
-            # 파일에 다시 쓰기
-            with open(RESULTS_PATH, 'w', encoding='utf-8') as f:
-                for row in data:
-                    f.write(json.dumps(row, ensure_ascii=False) + '\n')
-            return True
-        
+        with open(RESULTS_PATH, "r", encoding="utf-8") as rf, open(tmp_path, "w", encoding="utf-8") as wf:
+            for raw in rf:
+                line = raw.strip()
+                if not line:
+                    continue
+                try:
+                    rec = json.loads(line)
+                except Exception:
+                    # 손상 라인은 그대로 유지
+                    wf.write(raw)
+                    continue
+
+                rec_log_id = str(rec.get("log_id", "")).strip()
+                if (not updated) and rec_log_id == key:
+                    uft = user_final_text.strip()
+                    if uft in ("A", "B", "C"):
+                        A = (rec.get("marketing_a") or "").strip()
+                        B = (rec.get("marketing_b") or "").strip()
+                        C = (rec.get("ai_generated_text") or "").strip()
+                        rec["user_final_text"] = A if uft == "A" else (B if uft == "B" else C)
+                    else:
+                        rec["user_final_text"] = uft
+                    updated = True
+                    wf.write(json.dumps(rec, ensure_ascii=False) + "\n")
+                else:
+                    wf.write(json.dumps(rec, ensure_ascii=False) + "\n")
+
+        shutil.move(tmp_path, RESULTS_PATH)
+    except Exception:
+        try:
+            if os.path.exists(tmp_path):
+                os.remove(tmp_path)
+        except Exception:
+            pass
         return False
-    except Exception as e:
-        print(f"사용자 선택 업데이트 실패: {e}")
-        return False
 
-# -----------------------------
-# 텍스트 처리
-# -----------------------------
+    return updated
 
-def _cleanup_text(text: str) -> str:
-    """텍스트 정리"""
-    if not text:
-        return ""
-    # 따옴표 제거
-    text = text.strip().strip('"').strip("'")
-    # 줄바꿈 정리
-    text = text.replace('\n', ' ').replace('\r', ' ')
-    # 연속 공백 제거
-    text = ' '.join(text.split())
-    return text
+# -------------------------------------------------
+# rebuild-index용 간단 피처/클래스 유틸
+# -------------------------------------------------
+def _feature_sentence(category: str,
+                      ages: List[str],
+                      genders: List[str],
+                      interests: str,
+                      A: str,
+                      B: str,
+                      C: str) -> str:
+    """인덱스 구축용 간단 텍스트 피처."""
+    cat = _cleanup_text(category)
+    ag = _cleanup_text(" ".join(ages or []))
+    gd = _cleanup_text(" ".join(genders or []))
+    it = _cleanup_text(interests)
+    a = _cleanup_text(A)
+    b = _cleanup_text(B)
+    c = _cleanup_text(C)
+    return f"[cat]{cat} [ages]{ag} [genders]{gd} [interests]{it} [A]{a} [B]{b} [C]{c}"
 
-def _feature_sentence(category: str, age_groups: List[str], genders: List[str], interests: str, marketing_a: str, marketing_b: str) -> str:
-    """특징 문장 생성"""
-    parts = []
-    if category:
-        parts.append(f"카테고리: {category}")
-    if age_groups:
-        parts.append(f"연령대: {', '.join(age_groups)}")
-    if genders:
-        parts.append(f"성별: {', '.join(genders)}")
-    if interests:
-        parts.append(f"관심사: {interests}")
-    parts.append(f"마케팅A: {marketing_a}")
-    parts.append(f"마케팅B: {marketing_b}")
-    return " | ".join(parts)
+def _to_class(r: Dict[str, Any]) -> str:
+    """
+    결과 레코드에서 최종 선택 클래스를 유추(A/B/C/USER/NONE).
+    """
+    final = (r.get("user_final_text") or "").strip()
+    if not final:
+        return "NONE"
 
-# -----------------------------
-# 클래스 분류
-# -----------------------------
+    A = (r.get("marketing_a") or "").strip()
+    B = (r.get("marketing_b") or "").strip()
+    C = (r.get("ai_generated_text") or "").strip()
 
-def _to_class(row: Dict[str, Any]) -> str:
-    """최종 선택을 클래스로 변환"""
-    final_text = row.get("user_final_text", "")
-    if not final_text:
-        return "N/A"
-    
-    marketing_a = row.get("marketing_a", "")
-    marketing_b = row.get("marketing_b", "")
-    
-    if final_text == marketing_a:
+    if final == A:
         return "A"
-    elif final_text == marketing_b:
+    if final == B:
         return "B"
-    else:
-        return "C"  # AI 생성 또는 기타
+    if final == C:
+        return "C"
+    return "USER"

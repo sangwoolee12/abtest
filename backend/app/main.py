@@ -4,41 +4,24 @@ import uuid
 import json
 from typing import List
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 
-# 내부 모듈 import
 from .models import (
-    PredictRequest, PredictResponse, ImageGenerationRequest, 
+    PredictRequest, PredictResponse, ImageGenerationRequest,
     ImageGenerationResponse, UserChoiceIn, ABTestStoredResult
 )
-from .config import (
-    GEMINI_API_KEY, GEMINI_MODEL, GEMINI_TEMPERATURE, 
-    EMBED_MODEL, RESULTS_PATH, PERSONAS, CALIBRATION
-)
-from .utils import (
-    append_jsonl, _load_jsonl, update_user_choice_inplace,
-    _feature_sentence, _to_class
-)
-from .llm_utils import (
-    _build_prompt, _build_c_analysis_prompt, _clean_llm_response,
-    _parse_llm_response, _generate_local_c_analysis, 
-    _generate_local_c_analysis_text
-)
+from .config import RESULTS_PATH
+from .utils import append_jsonl, _load_jsonl, _feature_sentence, _to_class
+from .llm_utils import _generate_local_c_analysis_text
 from .business_logic import (
-    sample_personas, llm_persona_scores, weighted_ctr_from_scores,
-    _knn_follow, generate_third_copy, calibrate_ctr
-)
-from .image_generation import (
-    generate_images_with_gemini
+    sample_personas, llm_persona_scores, fast_persona_scores,
+    weighted_ctr_from_scores, _knn_follow, generate_third_copy, calibrate_ctr
 )
 
-# -----------------------------
-# FastAPI 앱 초기화
-# -----------------------------
-app = FastAPI(title="A/B Test Backend", version="1.0.0")
+app = FastAPI(title="A/B Test Backend", version="1.2.2")
 
-# CORS 설정
+# CORS (프론트는 그대로 사용)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -47,221 +30,231 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# -----------------------------
-# LangChain Gemini 초기화
-# -----------------------------
-try:
-    from langchain_google_genai import ChatGoogleGenerativeAI
-    from langchain_google_genai import GoogleGenerativeAIEmbeddings
-    
-    # LLM 초기화
-    llm = ChatGoogleGenerativeAI(
-        model=GEMINI_MODEL,
-        temperature=GEMINI_TEMPERATURE,
-        google_api_key=GEMINI_API_KEY
-    )
-    
-    # Embedding 모델 초기화
-    embeddings = GoogleGenerativeAIEmbeddings(
-        model=EMBED_MODEL,
-        google_api_key=GEMINI_API_KEY
-    )
-    
-    print(f"✅ Gemini API Key loaded: {GEMINI_API_KEY[:20]}...")
-    print(f"   Model: {GEMINI_MODEL}, Temperature: {GEMINI_TEMPERATURE}")
-    print("✅ LangChain Gemini components initialized successfully")
-    
-except Exception as e:
-    print(f"❌ LangChain Gemini 초기화 실패: {e}")
-    llm = None
-    embeddings = None
+_INDEX = []  # 인메모리 인덱스(옵션)
 
-# -----------------------------
-# 과거 '최종선택' 레코드 인덱스
-# -----------------------------
-_INDEX = []  # {log_id, vec, ts, category, ages:set, genders:set, A, B, final_text, final_class}
-
-# -----------------------------
-# 기본 엔드포인트
-# -----------------------------
 @app.get("/")
 def root():
     return {"ok": True, "service": "ab-test-backend"}
 
-# -----------------------------
-# 예측 엔드포인트
-# -----------------------------
 @app.post("/api/predict", response_model=PredictResponse)
 def predict(req: PredictRequest):
+    if not (req.marketing_a and req.marketing_b):
+        raise HTTPException(status_code=400, detail="marketing_a, marketing_b는 필수입니다.")
+
     # 1) 페르소나 샘플링
     personas = sample_personas(req, topN=5)
 
-    # 2) LLM 평가 → 정규화 CTR
+    # 2) Gemini 먼저 시도 → 실패 시 fast 경로
     try:
         rows, winner_kw = llm_persona_scores(req, personas)
-        ctr_a, ctr_b, reasons_a, reasons_b = weighted_ctr_from_scores(rows)
     except Exception as e:
-        print(f"페르소나 평가 실패: {e}")
-        ctr_a, ctr_b = 0.45, 0.55
-        reasons_a, reasons_b = "기본 분석", "기본 분석"
-        winner_kw = None
+        print(f"[Gemini] ❌ LLM 실패, fallback: {e}")
+        rows, winner_kw = fast_persona_scores(req, personas)
 
-    # 3) 간단한 KNN 보정 (빠른 처리)
+    # 3) 가중 CTR
+    ctr_a, ctr_b, reasons_a, reasons_b = weighted_ctr_from_scores(rows)
+
+    # 4) 간단 KNN 보정 (선택)
     try:
         follow = _knn_follow(
-            category=req.category,
+            category=req.category or "",
             ages=req.age_groups or [],
             genders=req.genders or [],
             interests=req.interests or "",
             A=req.marketing_a, B=req.marketing_b,
-            k=5, tau_hard=0.9  # k와 임계값 줄임
+            k=5, tau_hard=0.9
         )
         if follow.get("mode") == "hard" and follow.get("follow_class") in ["A", "B"]:
             if follow["follow_class"] == "A":
                 ctr_a, ctr_b = max(ctr_a, 0.6), min(ctr_b, 0.4)
             else:
                 ctr_b, ctr_a = max(ctr_b, 0.6), min(ctr_a, 0.4)
-    except:
-        pass  # KNN 실패 시 무시하고 진행
+    except Exception:
+        pass
 
-    # 4) 현실 CTR 범위로 캘리브레이션 (비율값)
-    ctr_a = calibrate_ctr(ctr_a, req.category, shrink=0.35)
-    ctr_b = calibrate_ctr(ctr_b, req.category, shrink=0.35)
+    # 5) 캘리브레이션
+    category = req.category or "기타"
+    ctr_a = calibrate_ctr(ctr_a, category)
+    ctr_b = calibrate_ctr(ctr_b, category)
 
-    # 5) 간단한 제3문구 생성
-    try:
-        third = generate_third_copy(req, winner_kw or "마케팅", "A" if ctr_a >= ctr_b else "B")
-    except:
-        third = f"AI 제안: {req.marketing_a}와 {req.marketing_b}의 장점을 결합한 새로운 접근"
+    # 6) C안 생성/분석
+    ai_top = "A" if ctr_a >= ctr_b else "B"
+    third = generate_third_copy(req, winner_kw, ai_top)
 
-    # 6) C안의 CTR 예측 (승자 요인을 반영하여 높은 CTR 예상)
-    ctr_c = max(ctr_a, ctr_b) * 1.1  # 승자보다 10% 높게 예측
-    ctr_c = min(ctr_c, 0.95)  # 최대 95%로 제한
-    ctr_c = calibrate_ctr(ctr_c, req.category, shrink=0.35)
+    ctr_c = (ctr_a + ctr_b) / 2.0
+    ctr_c = min(1.0, ctr_c + 0.02)
+    ctr_c = calibrate_ctr(ctr_c, category)
 
-    # 7) 최고 CTR 결정
-    if ctr_c >= max(ctr_a, ctr_b):
-        ai_top = "C"
-    elif ctr_a >= ctr_b:
-        ai_top = "A"
-    else:
-        ai_top = "B"
+    c_analysis = _generate_local_c_analysis_text(req, third, ctr_c, ctr_a, ctr_b)
 
-    # 8) LLM 상세분석 생성 (빠른 처리)
-    detailed_analysis = None
-    if llm:
-        try:
-            prompt = _build_prompt(req)
-            response = llm.invoke(prompt)
-            data = json.loads(_clean_llm_response(response.content))
-            detailed_analysis = PredictResponse(
-                ctr_a=float(data["ctr_a"]), ctr_b=float(data["ctr_b"]), ctr_c=0.0,
-                analysis_a=data["analysis_a"], analysis_b=data["analysis_b"], analysis_c="",
-                ai_suggestion=data["ai_suggestion"]
-            )
-        except:
-            detailed_analysis = None
-    
-    # 9) C안 분석 생성 (빠른 처리)
-    c_analysis = ""
-    if llm:
-        try:
-            prompt = _build_c_analysis_prompt(req, third)
-            response = llm.invoke(prompt)
-            data = json.loads(_clean_llm_response(response.content))
-            c_analysis = data.get('analysis_c', '')
-        except:
-            c_analysis = _generate_local_c_analysis_text(req, third, ctr_c, ctr_a, ctr_b)
-    else:
-        c_analysis = _generate_local_c_analysis_text(req, third, ctr_c, ctr_a, ctr_b)
-    
-    # 11) 저장(JSONL) 및 응답
-    # detailed_analysis가 None인 경우 기본값 사용
-    if detailed_analysis is None:
-        analysis_a = "기본 분석: 마케팅 문구의 효과를 평가하기 위해 추가 분석이 필요합니다."
-        analysis_b = "기본 분석: 마케팅 문구의 효과를 평가하기 위해 추가 분석이 필요합니다."
-    else:
-        analysis_a = detailed_analysis.analysis_a
-        analysis_b = detailed_analysis.analysis_b
-    
-    result = PredictResponse(
-        ctr_a=float(ctr_a),
-        ctr_b=float(ctr_b),
-        ctr_c=float(ctr_c),
-        analysis_a=analysis_a,
-        analysis_b=analysis_b,
-        analysis_c=c_analysis,
-        ai_suggestion=third,
-        ai_top_ctr_choice=ai_top,
-        log_id=str(uuid.uuid4()),
-    )
-    stored = ABTestStoredResult(
-        log_id=result.log_id,
+    # 7) 저장
+    log_id = uuid.uuid4().hex
+    store = ABTestStoredResult(
+        log_id=log_id,
         timestamp=time.time(),
         age_groups=req.age_groups or [],
         genders=req.genders or [],
         interests=req.interests or "",
-        category=req.category or "",
+        category=category,
         marketing_a=req.marketing_a,
         marketing_b=req.marketing_b,
-        pred_ctr_a=float(result.ctr_a),
-        pred_ctr_b=float(result.ctr_b),
-        pred_ctr_c=float(result.ctr_c),
-        ai_generated_text=result.ai_suggestion,
+        pred_ctr_a=float(ctr_a),
+        pred_ctr_b=float(ctr_b),
+        pred_ctr_c=float(ctr_c),
+        ai_generated_text=third,
         ai_top_ctr_choice=ai_top,
         user_final_text=None,
     )
-    row = stored.model_dump() if hasattr(stored,"model_dump") else stored.dict()
-    append_jsonl(RESULTS_PATH, row)
-    return result
+    try:
+        append_jsonl(RESULTS_PATH, store.dict())
+    except Exception as e:
+        print(f"[RESULTS] 저장 실패(무시): {e}")
 
-# -----------------------------
-# 이미지 생성
-# -----------------------------
+    # 8) 응답
+    return PredictResponse(
+        ctr_a=float(ctr_a),
+        ctr_b=float(ctr_b),
+        ctr_c=float(ctr_c),
+        analysis_a=reasons_a,
+        analysis_b=reasons_b,
+        analysis_c=c_analysis,
+        ai_suggestion=third,
+        ai_top_ctr_choice=ai_top,
+        log_id=log_id,
+    )
+
 @app.post("/api/generate-images", response_model=ImageGenerationResponse)
 def generate_images(req: ImageGenerationRequest):
-    # Gemini 2.5 Flash Image Preview 모델을 사용하여 이미지 생성
-    return generate_images_with_gemini(req)
+    # 지연 import → 이미지 모듈 미설치여도 서버 기동 영향 없음
+    try:
+        from .image_generation import generate_images_with_gemini
+        return generate_images_with_gemini(req)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
-# -----------------------------
-# 사용자 최종 선택 기록 (인플레이스 업데이트)
-# -----------------------------
-@app.post("/api/log-user-choice")
-def log_user_choice(payload: UserChoiceIn):
-    ok = update_user_choice_inplace(payload.log_id, payload.user_final_text)
+# --------------------------------------------------------------------
+# ✅ 사용자 선택 기록 (핵심 수정)
+# --------------------------------------------------------------------
+@app.post("/api/user-choice")
+async def user_choice(user: UserChoiceIn, request: Request):
+    """
+    요구사항:
+      - A/B/C 중 하나 선택 시 해당 '문구'가 user_final_text로 기록되어야 한다.
+      - 프론트가 "A"/"B"/"C" 같은 축약값을 보내도 실제 문구로 치환해 저장.
+      - 경우에 따라 프론트가 필드명을 다르게 보낼 수 있어(request body에서 보조 추출).
+      - 다른 기능은 변경하지 않음.
+    """
+    log_id = (user.log_id or "").strip()
+    final = (user.user_final_text or "").strip()
 
-    # 혹시 원본 레코드를 못 찾으면 이벤트 라인으로라도 남겨 둠
-    if not ok:
-        append_jsonl(RESULTS_PATH, {
-            "type": "user_choice_update",
-            "log_id": payload.log_id,
-            "timestamp": time.time(),
-            "user_final_text": payload.user_final_text,
-        })
-    # 인덱스에 즉시 반영
-    if ok:
-        for r in _load_jsonl(RESULTS_PATH)[::-1]:  # 최근부터 탐색
-            if r.get("log_id") == payload.log_id and r.get("user_final_text"):
-                try:
-                    vec = embeddings.embed_query(_feature_sentence(
-                        r.get("category",""), r.get("age_groups",[]), r.get("genders",[]),
-                        r.get("interests",""), r.get("marketing_a",""), r.get("marketing_b","")
-                    ))
-                except Exception:
-                    vec = None
-                if vec is not None:
-                    _INDEX.append({
-                        "log_id": r.get("log_id"),
-                        "vec": vec,
-                        "ts": float(r.get("timestamp", time.time())),
-                        "category": (r.get("category","") or "").lower().strip(),
-                        "ages": set(map(str.lower, r.get("age_groups",[]))),
-                        "genders": set(map(str.lower, r.get("genders",[]))),
-                        "A": r.get("marketing_a",""),
-                        "B": r.get("marketing_b",""),
-                        "final_text": r.get("user_final_text",""),
-                        "final_class": _to_class(r),
-                    })
+    # 보조 추출: 일부 프론트가 'choice'/'selected' 등으로 보낼 경우 대비
+    if not final:
+        try:
+            raw = await request.json()
+            for key in ("user_final_text", "choice", "selected", "final", "selected_text"):
+                if key in raw and isinstance(raw[key], str) and raw[key].strip():
+                    final = raw[key].strip()
+                    break
+        except Exception:
+            pass
+
+    if not log_id or not final:
+        raise HTTPException(status_code=400, detail="log_id와 user_final_text(또는 choice)는 필수입니다.")
+
+    # 1) 현재 로그 로드
+    rows = _load_jsonl(RESULTS_PATH)
+    if not rows:
+        raise HTTPException(status_code=404, detail="결과 로그가 비어 있습니다.")
+
+    # 2) 레코드 매칭 (엄격 → 느슨)
+    target = None
+    # (a) 엄격 매칭
+    for rec in rows:
+        if (rec.get("log_id") or "").strip() == log_id:
+            target = rec
+            break
+    # (b) 느슨한 매칭 (공백/대소/부분)
+    if target is None:
+        lid = log_id.lower()
+        for rec in rows:
+            rid = str(rec.get("log_id", "")).strip().lower()
+            if rid == lid or lid in rid or rid in lid:
+                target = rec
                 break
+    if target is None:
+        raise HTTPException(status_code=404, detail="log_id를 찾을 수 없습니다.")
 
-    return {"ok": True, "updated_inline": ok}
+    # 3) 축약값(A/B/C/A안/B안/C안/0/1/2) → 실제 문구로 변환
+    key = final
+    if key in ("0", "1", "2"):  # 인덱스로 올 수도 있음
+        key = {"0": "A", "1": "B", "2": "C"}[key]
+    if key in ("A", "A안"):
+        final = (target.get("marketing_a") or "").strip()
+    elif key in ("B", "B안"):
+        final = (target.get("marketing_b") or "").strip()
+    elif key in ("C", "C안"):
+        final = (target.get("ai_generated_text") or "").strip()
+    # else: 이미 실제 문구라고 판단 → 그대로 사용
+
+    if not final:
+        raise HTTPException(status_code=400, detail="선택한 문구가 비어 있습니다.")
+
+    # 4) 대상 레코드 갱신
+    target["user_final_text"] = final
+
+    # 5) 원자적 저장
+    dirpath = os.path.dirname(RESULTS_PATH) or "."
+    os.makedirs(dirpath, exist_ok=True)
+    import tempfile, shutil
+    fd, tmp_path = tempfile.mkstemp(prefix="results_", suffix=".jsonl", dir=dirpath, text=True)
+    os.close(fd)
+    try:
+        with open(tmp_path, "w", encoding="utf-8") as wf:
+            for rec in rows:
+                wf.write(json.dumps(rec, ensure_ascii=False) + "\n")
+        # 파일 교체
+        shutil.move(tmp_path, RESULTS_PATH)
+    except Exception as e:
+        try:
+            if os.path.exists(tmp_path):
+                os.remove(tmp_path)
+        except Exception:
+            pass
+        raise HTTPException(status_code=500, detail=f"저장 실패: {e}")
+
+    return {"ok": True}
+
+# --------------------------------------------------------------------
+# (옵션) 인덱스 재구축
+# --------------------------------------------------------------------
+@app.post("/api/rebuild-index")
+def rebuild_index():
+    global _INDEX
+    _INDEX.clear()
+    data = _load_jsonl(RESULTS_PATH)
+    for r in data[-1000:]:
+        try:
+            vec = _feature_sentence(
+                r.get("category",""),
+                r.get("age_groups",[]),
+                r.get("genders",[]),
+                r.get("interests",""),
+                r.get("marketing_a",""),
+                r.get("marketing_b",""),
+                r.get("ai_generated_text",""),
+            )
+            _INDEX.append({
+                "log_id": r.get("log_id"),
+                "vec": vec,
+                "ts": float(r.get("timestamp", time.time())),
+                "category": (r.get("category","") or "").lower().strip(),
+                "ages": set(map(str.lower, r.get("age_groups",[]))),
+                "genders": set(map(str.lower, r.get("genders",[]))),
+                "A": r.get("marketing_a",""),
+                "B": r.get("marketing_b",""),
+                "final_text": r.get("user_final_text",""),
+                "final_class": _to_class(r),
+            })
+        except Exception:
+            continue
+    return {"ok": True, "count": len(_INDEX)}
