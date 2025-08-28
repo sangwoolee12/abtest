@@ -453,7 +453,13 @@ const ImageScreen = () => {
         ? `${marketingText}\n\n스타일 요청: ${imageStyle}`
         : marketingText;
 
-      // OpenAI API 호출하여 이미지 생성
+      console.log('🔍 이미지 생성 요청:', {
+        prompt: combinedPrompt,
+        n: 3,
+        size: '1024x1024'
+      });
+      
+      // API 호출하여 이미지 생성
       const response = await fetch('/api/generate-images', {
         method: 'POST',
         headers: {
@@ -466,16 +472,23 @@ const ImageScreen = () => {
         }),
       });
       
+      console.log('🔍 API 응답 상태:', response.status, response.statusText);
+      
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error('🔍 API 오류 응답:', errorText);
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       
       const data = await response.json();
+      console.log('🔍 API 응답 데이터:', data);
       
       if (data.images && data.images.length > 0) {
+        console.log('✅ 이미지 생성 성공:', data.images.length, '개');
         setGeneratedImageUrls(data.images);
         setImagesGenerated(true);
       } else {
+        console.error('⚠️ 이미지 데이터가 없음:', data);
         throw new Error('이미지 생성에 실패했습니다.');
       }
       
