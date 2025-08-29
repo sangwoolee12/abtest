@@ -54,9 +54,26 @@ def predict(req: PredictRequest):
         print(f"[Gemini] ❌ LLM 실패, fallback: {e}")
         rows, winner_kw = fast_persona_scores(req, personas)
 
-    # 3) 가중 CTR (LLM 분석 결과 전달)
+        # 3) 가중 CTR (LLM 분석 결과 전달)
     ctr_a, ctr_b, reasons_a, reasons_b = weighted_ctr_from_scores(rows, llm_analysis)
-    
+
+    # 과거 사용자 선택 패턴 기반 가중치 조정 (RAG 학습 효과)
+    try:
+        choice_patterns = rag_system.get_user_choice_patterns(req)
+        print(f"[RAG] 과거 선택 패턴: A({choice_patterns['A']:.2f}), B({choice_patterns['B']:.2f}), C({choice_patterns['C']:.2f})")
+        
+        # 과거 선택 패턴을 CTR에 반영 (학습 효과)
+        if choice_patterns["A"] > 0.1:  # A 선택 비율이 10% 이상인 경우
+            ctr_a *= (1 + choice_patterns["A"] * 0.3)  # 최대 30%까지 부스트
+        if choice_patterns["B"] > 0.1:  # B 선택 비율이 10% 이상인 경우
+            ctr_b *= (1 + choice_patterns["B"] * 0.3)  # 최대 30%까지 부스트
+        
+        print(f"[RAG] 학습 효과 적용 후: A({ctr_a:.3f}), B({ctr_b:.3f})")
+        
+    except Exception as e:
+        print(f"[RAG] 과거 선택 패턴 분석 실패: {e}")
+        choice_patterns = {"A": 0.0, "B": 0.0, "C": 0.0}
+
     # RAG를 활용한 향상된 분석 생성
     try:
         enhanced_a = rag_system.generate_rag_enhanced_analysis(req, reasons_a)
@@ -99,7 +116,16 @@ def predict(req: PredictRequest):
     base_ctr = max(ctr_a, ctr_b)  # 더 높은 CTR을 기준으로
     improvement_factor = 0.25  # 25% 개선 효과 (증가)
     synergy_bonus = 0.12  # 시너지 효과 12% (증가)
-    
+
+    # 과거 C안 선택 패턴 반영 (RAG 학습 효과)
+    try:
+        if choice_patterns.get("C", 0) > 0.1:  # C 선택 비율이 10% 이상인 경우
+            c_boost = choice_patterns["C"] * 0.4  # 최대 40%까지 부스트
+            improvement_factor += c_boost
+            print(f"[RAG] C안 학습 효과: +{c_boost:.1%}")
+    except Exception as e:
+        print(f"[RAG] C안 학습 효과 적용 실패: {e}")
+
     ctr_c = base_ctr * (1 + improvement_factor) + synergy_bonus
     ctr_c = min(1.0, ctr_c)  # 최대 100%로 제한
     

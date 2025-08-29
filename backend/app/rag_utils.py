@@ -216,5 +216,99 @@ class RAGSystem:
             "recent_trends": user_choices[-10:] if len(user_choices) > 10 else user_choices
         }
 
+    def get_user_choice_patterns(self, req: PredictRequest) -> Dict[str, float]:
+        """과거 사용자 선택 패턴을 기반으로 A/B/C 선택 가중치 반환"""
+        results = self._load_results()
+        if not results:
+            return {"A": 0.0, "B": 0.0, "C": 0.0}
+        
+        # 유사한 조건의 과거 선택 데이터 필터링
+        similar_choices = []
+        for choice in results:
+            if not choice.get("user_final_text"):
+                continue
+                
+            # 카테고리 매칭
+            if choice.get("category") != req.category:
+                continue
+                
+            # 연령대/성별/관심사 유사도 계산
+            similarity_score = self._calculate_similarity(req, choice)
+            if similarity_score > 0.3:  # 30% 이상 유사한 경우만
+                similar_choices.append({
+                    "choice": choice,
+                    "similarity": similarity_score
+                })
+        
+        if not similar_choices:
+            return {"A": 0.0, "B": 0.0, "C": 0.0}
+        
+        # 선택 패턴 분석
+        choice_counts = {"A": 0, "B": 0, "C": 0}
+        total_weight = 0
+        
+        for item in similar_choices:
+            choice = item["choice"]
+            weight = item["similarity"]
+            
+            # 어떤 옵션을 선택했는지 판단
+            user_text = choice["user_final_text"]
+            if user_text == choice.get("marketing_a"):
+                choice_counts["A"] += weight
+            elif user_text == choice.get("marketing_b"):
+                choice_counts["B"] += weight
+            elif user_text == choice.get("ai_generated_text"):
+                choice_counts["C"] += weight
+            
+            total_weight += weight
+        
+        # 가중치 정규화
+        if total_weight > 0:
+            return {
+                "A": choice_counts["A"] / total_weight,
+                "B": choice_counts["B"] / total_weight,
+                "C": choice_counts["C"] / total_weight
+            }
+        
+        return {"A": 0.0, "B": 0.0, "C": 0.0}
+
+    def _calculate_similarity(self, req: PredictRequest, choice: Dict) -> float:
+        """요청과 과거 선택 간의 유사도 계산"""
+        score = 0.0
+        max_score = 0.0
+        
+        # 카테고리 (가중치: 3)
+        if choice.get("category") == req.category:
+            score += 3.0
+        max_score += 3.0
+        
+        # 연령대 (가중치: 2)
+        if req.age_groups and choice.get("age_groups"):
+            for age in req.age_groups:
+                if age in choice["age_groups"]:
+                    score += 2.0
+                    break
+        max_score += 2.0
+        
+        # 성별 (가중치: 2)
+        if req.genders and choice.get("genders"):
+            for gender in req.genders:
+                if gender in choice["genders"]:
+                    score += 2.0
+                    break
+        max_score += 2.0
+        
+        # 관심사 (가중치: 1)
+        if req.interests and choice.get("interests"):
+            req_interests = req.interests.lower().split(', ')
+            choice_interests = choice["interests"].lower().split(', ')
+            for interest in req_interests:
+                if any(interest in ci for ci in choice_interests):
+                    score += 1.0
+                    break
+        max_score += 1.0
+        
+        return score / max_score if max_score > 0 else 0.0
+
 # 전역 RAG 시스템 인스턴스
 rag_system = RAGSystem()
