@@ -202,6 +202,13 @@ const ResetButton = styled.button`
   &:hover {
     text-decoration: underline;
   }
+
+  &:disabled {
+    color: #9AA0A6;
+    cursor: not-allowed;
+    text-decoration: none;
+    opacity: 0.6;
+  }
 `;
 
 const CategorySelect = styled.select`
@@ -231,6 +238,14 @@ const CategorySelect = styled.select`
     outline: none;
     border-color: #99EA48;
     box-shadow: 0 0 0 3px rgba(153, 234, 72, 0.1);
+  }
+
+  &:disabled {
+    background-color: #F5F5F5;
+    border-color: #E0E0E0;
+    color: #9AA0A6;
+    cursor: not-allowed;
+    opacity: 0.6;
   }
 
   option {
@@ -276,6 +291,14 @@ const MarketingInput = styled.input`
 
   &::placeholder {
     color: #9AA0A6;
+  }
+
+  &:disabled {
+    background-color: #F5F5F5;
+    border-color: #E0E0E0;
+    color: #9AA0A6;
+    cursor: not-allowed;
+    opacity: 0.6;
   }
 `;
 
@@ -448,11 +471,12 @@ const ProductScreen = () => {
           <FilterBlock>
             <FilterHeader>
               <FilterTitle>제품 카테고리</FilterTitle>
-              <ResetButton onClick={() => handleReset('category')}>초기화</ResetButton>
+              <ResetButton onClick={() => handleReset('category')} disabled={isLoading}>초기화</ResetButton>
             </FilterHeader>
             <CategorySelect 
               value={selectedCategory} 
               onChange={handleCategoryChange}
+              disabled={isLoading}
             >
               <option value="" disabled>제품 카테고리를 선택해주세요</option>
               {categories.map((cat) => (
@@ -467,7 +491,7 @@ const ProductScreen = () => {
           <FilterBlock>
             <FilterHeader>
               <FilterTitle>마케팅 문구</FilterTitle>
-              <ResetButton onClick={() => handleReset('marketing')}>초기화</ResetButton>
+              <ResetButton onClick={() => handleReset('marketing')} disabled={isLoading}>초기화</ResetButton>
             </FilterHeader>
             <MarketingOptions>
               <MarketingInputWrapper>
@@ -477,6 +501,7 @@ const ProductScreen = () => {
                   placeholder="마케팅 문구 A안을 입력하세요"
                   value={marketingA}
                   onChange={handleMarketingAChange}
+                  disabled={isLoading}
                 />
               </MarketingInputWrapper>
               <MarketingInputWrapper>
@@ -486,6 +511,7 @@ const ProductScreen = () => {
                   placeholder="마케팅 문구 B안을 입력하세요"
                   value={marketingB}
                   onChange={handleMarketingBChange}
+                  disabled={isLoading}
                 />
               </MarketingInputWrapper>
             </MarketingOptions>
