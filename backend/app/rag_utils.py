@@ -106,20 +106,15 @@ class RAGSystem:
         examples_text = []
         for i, example in enumerate(relevant_examples, 1):
             example_text = f"""
-예시 {i}:
-- 카테고리: {example.get('category', 'N/A')}
-- 타겟: {', '.join(example.get('age_groups', []))} {', '.join(example.get('genders', []))}
-- A안: {example.get('marketing_a', 'N/A')}
-- B안: {example.get('marketing_b', 'N/A')}
-- C안: {example.get('ai_generated_text', 'N/A')}
-- 사용자 선택: {example.get('user_final_text', 'N/A')}
-- 예측 CTR: A({example.get('pred_ctr_a', 0):.1%}), B({example.get('pred_ctr_b', 0):.1%}), C({example.get('pred_ctr_c', 0):.1%})
+사례 {i}: {example.get('category', 'N/A')} 카테고리
+- 선택: {example.get('user_final_text', 'N/A')[:30]}...
+- 성과: A({example.get('pred_ctr_a', 0):.1%}) vs B({example.get('pred_ctr_b', 0):.1%})
 """
             examples_text.append(example_text)
         
         # RAG 프롬프트 생성
         prompt = f"""
-너는 30년 경력의 A/B 테스트 마케팅 전문가야. 다음 정보를 바탕으로 향상된 분석을 제공해줘.
+너는 마케팅 경험이 풍부한 A/B 테스트 전문가야. 자연스럽고 실용적인 분석을 제공해줘.
 
 현재 분석 대상:
 - 카테고리: {req.category or '일반'}
@@ -131,15 +126,24 @@ class RAGSystem:
 기존 분석:
 {base_analysis}
 
-과거 유사 사례 (사용자 실제 선택 결과):
+참고할 과거 사례들:
 {chr(10).join(examples_text)}
 
-위 과거 사례를 참고하여 기존 분석을 더욱 정확하고 실용적으로 개선해주세요.
-과거 사용자들의 실제 선택 패턴과 성과를 반영하여 분석의 신뢰도를 높여주세요.
+위 과거 사례들을 참고해서 더 나은 분석을 만들어줘. 
+하지만 "예시 1처럼", "예시 2처럼" 같은 표현은 사용하지 말고, 
+자연스럽게 통찰을 녹여서 분석해줘.
 
-반드시 다음 형식으로만 응답해주세요:
+분석은 실용적이고 구체적이어야 하며, 
+마케팅 담당자가 바로 활용할 수 있는 수준이어야 해요.
+
+- 마케팅 담당자와 대화하는 듯한 자연스러운 어조 사용
+- "~했어요", "~해요" 같은 친근한 표현
+- 과거 사례는 암묵적으로 참고하되 직접 언급하지 않기
+- 실용적이고 실행 가능한 제안 위주로
+
+응답 형식:
 {{
-    "enhanced_analysis": "향상된 분석 내용 (한국어, 400자 이상, 해요체 사용)"
+    "enhanced_analysis": "자연스럽고 실용적인 분석 (300-400자, 해요체)"
 }}
 
 중요: 반드시 위 JSON 형식으로만 응답해주세요. 다른 설명이나 텍스트는 절대 포함하지 마세요.
