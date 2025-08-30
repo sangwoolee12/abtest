@@ -287,12 +287,12 @@ class RAGSystem:
         score = 0.0
         max_score = 0.0
         
-        # 카테고리 (가중치: 3)
+        # 카테고리 가중치
         if choice.get("category") == req.category:
             score += 3.0
         max_score += 3.0
         
-        # 연령대 (가중치: 2)
+        # 연령대 가중치
         if req.age_groups and choice.get("age_groups"):
             for age in req.age_groups:
                 if age in choice["age_groups"]:
@@ -300,7 +300,7 @@ class RAGSystem:
                     break
         max_score += 2.0
         
-        # 성별 (가중치: 2)
+        # 성별 가중치
         if req.genders and choice.get("genders"):
             for gender in req.genders:
                 if gender in choice["genders"]:
@@ -308,7 +308,7 @@ class RAGSystem:
                     break
         max_score += 2.0
         
-        # 관심사 (가중치: 1)
+        # 관심사 가중치
         if req.interests and choice.get("interests"):
             req_interests = req.interests.lower().split(', ')
             choice_interests = choice["interests"].lower().split(', ')
